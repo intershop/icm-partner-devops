@@ -1,0 +1,55 @@
+# Define, when the pipeline should be triggered.
+# See https://docs.microsoft.com/en-us/azure/devops/pipelines/repos/azure-repos-git?view=azure-devops&tabs=yaml#ci-triggers
+trigger:
+  branches:
+      include:
+      - master
+      - develop
+      - release/*
+      - feature/*
+      - hotfix/*
+  tags:
+    include:
+      - version/*
+
+# Create a repository resource to the Github repo, that is providing the centrally managed CI job
+# and to the ci-configuration repository
+resources:
+  repositories:
+    - repository: icm-partner-devops
+      type: github
+      endpoint: INTERSHOP_GITHUB
+      name: intershop/icm-partner-devops
+      ref: main
+    - repository: ci-configuration
+      type: git
+      name: <projectName>-ci-configuration
+      ref: master
+
+variables:
+  # Library icm11-build-configuration is provided by Intershops DevOps Environment. It provides
+  # the following variables:
+  #  - BUILD_AGENT_POOL:                  name of the build agent pool
+  #  - REPO_SERVICE_CONNECTION:           service connection to the customer ACR
+  #  - REPO_PATH:                         host name and path of the customer ACR
+  #  - INTERSHOP_REPO_SERVICE_CONNECTION: service connection to the Intershop container registry
+  #  - INTERSHOP_REPO_PATH:               host name and path of the Intershop container registry
+  #  - ARTIFACT_FEED                      name of the icm artifacts feed
+  - group: icm11-build-configuration
+  - name:  isVersion
+    value: $[startsWith(variables['Build.SourceBranch'], 'refs/tags/version')]
+
+stages:
+- stage: CI
+  jobs:
+    # Run CI job. Additional custom stages/jobs might be added
+    - template: ci-job-template.yml@icm-partner-devops
+      parameters:
+        # These parameters must not be changed. They are used to pass variables to the ci-job templaten, which
+        # are defined by library icm11-build-configuration.
+        agentPool:                          $(BUILD_AGENT_POOL)
+        dockerRepoICMServiceConnection:     $(INTERSHOP_REPO_SERVICE_CONNECTION)
+        dockerRepoICM:                      $(INTERSHOP_REPO_PATH)
+        acrServiceConnection:               $(REPO_SERVICE_CONNECTION)
+        acr:                                $(REPO_PATH)
+        artifactsFeed:                      $(ARTIFACT_FEED)

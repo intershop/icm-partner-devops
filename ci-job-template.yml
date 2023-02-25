@@ -78,25 +78,41 @@ parameters:
   type: string
   default: '-PrepoUser=PAT -PrepoPassword=$(System.AccessToken)'
 
- #
+  #
 - name: gradleUserHome
   type: string
   default: '$(Pipeline.Workspace)/.gradle'
  
- # 
+  # 
 - name: containerPrefix
   type: string
   default: '$(System.TeamProject)'
 
- # Maximum job execution time
+  # Maximum job execution time
 - name: jobTimeoutInMinutes
   type: number
   default: 300
 
- # 'true' if future jobs should run even if this job fails; defaults to 'false'
+  # 'true' if future jobs should run even if this job fails; defaults to 'false'
 - name: jobContinueOnError
   type: boolean
   default: false
+
+  # 'false' if the gebTest task is not to be executed; defaults to 'true'
+- name: runGebTest
+  type: boolean
+  default: true
+
+  # gradle gebTest tasks
+- name: gebTestTasks
+  type: string
+  default: 'startSolrCloud startMailSrv startAS startWA startWAA rebuildSearchIndex gebTest'
+
+  # gradle build tasks
+- name: gradleBuildTask
+  type: string
+  default: 'startMSSQL dbPrepare test ishUnitTestReport -x=containerClean'
+
 
 jobs:
 - job: CI${{ parameters.id }}
@@ -107,6 +123,10 @@ jobs:
   timeoutInMinutes: ${{ parameters.jobTimeoutInMinutes }}
   workspace:
     clean: all
+  variables:
+    # See: https://learn.microsoft.com/en-us/azure/devops/pipelines/release/caching?view=azure-devops#gradle
+    - name: GRADLE_USER_HOME
+      value: ${{ parameters.gradleUserHome }}
 
   steps:
     - checkout: self
@@ -203,6 +223,10 @@ jobs:
               repositoriesConf:               ${secureRepositoriesConf}
               gradleUserHome:                 ${{ parameters.gradleUserHome }}
               containerPrefix:                ${{ parameters.containerPrefix }}
+              jobTimeoutInMinutes:            ${{ parameters.jobTimeoutInMinutes }}
+              runGebTest:                     ${{ parameters.runGebTest }}
+              gebTestTasks:                   ${{ parameters.gebTestTasks }}
+              gradleBuildTask:                ${{ parameters.gradleBuildTask }}
 
           EOF
 
@@ -241,9 +265,11 @@ jobs:
     - task: Cache@2
       timeoutInMinutes: 5
       inputs:
-        key: 'gradle'
-        restoreKeys: gradle
-        path: ${{ parameters.gradleUserHome }}
+        key: 'gradle | "$(Agent.OS)" | **/build.gradle.kts'
+        restoreKeys: |
+          gradle | "$(Agent.OS)"
+          gradle
+        path: $(GRADLE_USER_HOME)
       displayName: Gradle build cache
 
     - task: JavaToolInstaller@0
@@ -294,10 +320,11 @@ jobs:
         jdkVersionOption: '17'
         jdkArchitectureOption: 'x64'
         publishJUnitResults: true
-        tasks: 'startMSSQL dbPrepare test ishUnitTestReport -x=containerClean'
+        tasks: '${{ parameters.gradleBuildTask }}'
 
     - task: Gradle@2
       displayName: Gradle geb tests
+      condition: and(succeeded(), eq('${{ parameters.runGebTest }}', 'true'))
       continueOnError: false
       inputs:
         cwd: ${{ parameters.projectPath }}
@@ -308,7 +335,7 @@ jobs:
         jdkVersionOption: '17'
         jdkArchitectureOption: 'x64'
         publishJUnitResults: true
-        tasks: 'startSolrCloud startMailSrv startAS startWA startWAA rebuildSearchIndex gebTest'
+        tasks: '${{ parameters.gebTestTasks }}'
 
     - task: CmdLine@2
       displayName: docker write logs geb tests
@@ -500,7 +527,7 @@ jobs:
       inputs:
         targetPath: '${{ parameters.projectPath }}/build/geb'
         artifactType: 'pipeline'
-        artifactName: geb_test_log_files
+        artifactName: geb_test_log_files${{ parameters.id }}
       condition: succeededOrFailed()
 
     - task: PublishPipelineArtifact@1
@@ -509,7 +536,7 @@ jobs:
       inputs:
         targetPath: '${{ parameters.projectPath }}/build/server/logs'
         artifactType: 'pipeline'
-        artifactName: build_artifacts
+        artifactName: build_artifacts${{ parameters.id }}
       condition: succeededOrFailed()
 
 #    - task: PublishPipelineArtifact@1
@@ -517,7 +544,7 @@ jobs:
 #      inputs:
 #        targetPath: '${{ parameters.projectPath }}/my_geb_test/target/reports/tests/gebTest'
 #        artifactType: 'pipeline'
-#        artifactName: test_geb_artifacts
+#        artifactName: test_geb_artifacts${{ parameters.id }}
 #      condition: succeededOrFailed()
 
     - task: Gradle@2
