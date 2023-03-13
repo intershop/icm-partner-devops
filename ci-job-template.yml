@@ -86,7 +86,7 @@ parameters:
   # 
 - name: containerPrefix
   type: string
-  default: '$(System.TeamProject)'
+  default: '$(Build.Repository.Name)'
 
   # Maximum job execution time
 - name: jobTimeoutInMinutes
