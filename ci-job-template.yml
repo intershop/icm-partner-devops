@@ -339,6 +339,7 @@ jobs:
 
     - task: CmdLine@2
       displayName: docker write logs geb tests
+      condition: and(succeededOrFailed(), eq('${{ parameters.runGebTest }}', 'true'))
       timeoutInMinutes: 5
       inputs:
         workingDirectory: ${{ parameters.projectPath }}
@@ -352,7 +353,6 @@ jobs:
           docker logs ${{ parameters.containerPrefix }}-waa &> waa_log.txt
           echo log ${{ parameters.containerPrefix }}-as
           docker logs ${{ parameters.containerPrefix }}-as &> as_log.txt
-      condition: succeededOrFailed()
 
     # the task contains the publishing of test results
     - task: Gradle@2
