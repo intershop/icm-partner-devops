@@ -7,4 +7,5 @@ Repository *icm-partner-devops* provides an *Azure DevOps Pipeline* template, wh
 
 ## How to use the pipeline template
 
-Add a file `azure-pipelines.yml` to the root-directory of your project with following content. After that, in Azure DevOps a new pipeline has to be created from this file.
+Rename the `azure-pipelines.yml.tmpl` file to `azure-pipelines.yml` and add it to the root-directory of your icm-customization repository. After that, in Azure DevOps a new pipeline has to be created from this file.
+

@@ -30,13 +30,12 @@ parameters:
   type: string
   default: ''
 
-  # Service connection to the Docker repository
+  # Name of the Ssrvice connection to the Docker repository
 - name: dockerRepoICMServiceConnection
   type: string
   default: ''
 
-  # Name of Docker repository, containing the IOM product images.
-  # Overwrites the property intershop.docker.repo of IOM project.
+  # Name of Docker repository, containing the ICM-customization product images.
 - name: dockerRepoICM
   type: string
   default: ''
@@ -46,7 +45,7 @@ parameters:
   type: string
   default: ''
 
-  # Service connection to the ACR of the project.
+  # Name of the service connection to the ACR of the project.
 - name: acrServiceConnection
   type: string
   default: ''
@@ -56,7 +55,7 @@ parameters:
   type: string
   default: ''
 
-  # Name of the repository 
+  # Name of the icm-customization repository 
 - name: projectPath
   type: string
   default: '$(Build.Repository.Name)'
@@ -78,12 +77,12 @@ parameters:
   type: string
   default: '-PrepoUser=PAT -PrepoPassword=$(System.AccessToken)'
 
-  #
+  # Value of the GRADLE_USER_HOME variable
 - name: gradleUserHome
   type: string
   default: '$(Pipeline.Workspace)/.gradle'
  
-  # 
+  # Prefix of the GebTest containers
 - name: containerPrefix
   type: string
   default: '$(Build.Repository.Name)'
@@ -93,12 +92,12 @@ parameters:
   type: number
   default: 300
 
-  # 'true' if future jobs should run even if this job fails; defaults to 'false'
+  # 'true' if future jobs should run even if this job fails; default: 'false'
 - name: jobContinueOnError
   type: boolean
   default: false
 
-  # 'false' if the gebTest task is not to be executed; defaults to 'true'
+  # 'false' if the gebTest task is not to be executed; default: 'true'
 - name: runGebTest
   type: boolean
   default: true
@@ -528,7 +527,7 @@ jobs:
         targetPath: '${{ parameters.projectPath }}/build/geb'
         artifactType: 'pipeline'
         artifactName: geb_test_log_files${{ parameters.id }}
-      condition: succeededOrFailed()
+      condition: and(succeededOrFailed(), eq('${{ parameters.runGebTest }}', 'true'))
 
     - task: PublishPipelineArtifact@1
       timeoutInMinutes: 5
