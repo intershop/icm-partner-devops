@@ -1,3 +1,6 @@
+# This is just one example of how the job template can be utilized. 
+# Project-specific modifications can be made as needed, providing flexibility and adaptability.
+
 # Define, when the pipeline should be triggered.
 # See https://docs.microsoft.com/en-us/azure/devops/pipelines/repos/azure-repos-git?view=azure-devops&tabs=yaml#ci-triggers
 trigger:
@@ -16,11 +19,16 @@ trigger:
 # and to the ci-configuration repository
 resources:
   repositories:
+    # CI build pipeline repository
+    # See: https://github.com/intershop/icm-partner-devops
     - repository: icm-partner-devops
       type: github
       endpoint: INTERSHOP_GITHUB
       name: intershop/icm-partner-devops
-      ref: main
+      # Likewise, a fixed tag can be used:
+      # ref: refs/tags/1.0.0
+      ref: refs/heads/stable/v1
+    # CI configuration repository
     - repository: ci-configuration
       type: git
       name: <projectName>-ci-configuration
@@ -42,11 +50,12 @@ variables:
 stages:
 - stage: CI
   jobs:
-    # Run CI job. Additional custom stages/jobs might be added
+    # Run CI job. Additional custom stages/jobs might be added.
     - template: ci-job-template.yml@icm-partner-devops
       parameters:
         # These parameters must not be changed. They are used to pass variables to the ci-job templaten, which
         # are defined by library icm11-build-configuration.
+        # Description of all allowed parameters: https://github.com/intershop/icm-partner-devops
         agentPool:                          $(BUILD_AGENT_POOL)
         dockerRepoICMServiceConnection:     $(INTERSHOP_REPO_SERVICE_CONNECTION)
         dockerRepoICM:                      $(INTERSHOP_REPO_PATH)
