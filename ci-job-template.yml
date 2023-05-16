@@ -296,7 +296,7 @@ jobs:
       inputs:
         cwd: ${{ parameters.projectPath }}
         gradleWrapperFile: ${{ parameters.projectPath }}/gradlew
-        options: '-s -i --max-workers 6 ${{ parameters.directoriesConf }} ${{ parameters.repositoriesConf }}'
+        options: '-s -i --max-workers 6 ${{ parameters.directoriesConf }} ${{ parameters.repositoriesConf }} -PbuildID=$(Build.BuildId)'
         gradleOptions: '-Xmx3072m'
         javaHomeOption: 'JDKVersion'
         jdkVersionOption: '17'
@@ -311,7 +311,7 @@ jobs:
       inputs:
         cwd: ${{ parameters.projectPath }}
         gradleWrapperFile: ${{ parameters.projectPath }}/gradlew
-        options: '--refresh-dependencies --scan -s --max-workers 6 -PrunOnCI=true ${{ parameters.directoriesConf }} ${{ parameters.repositoriesConf }}'
+        options: '--refresh-dependencies --scan -s --max-workers 6 -PrunOnCI=true ${{ parameters.directoriesConf }} ${{ parameters.repositoriesConf }} -PbuildID=$(Build.BuildId)'
         gradleOptions: '-Xmx3072m'
         javaHomeOption: 'JDKVersion'
         jdkVersionOption: '17'
@@ -326,7 +326,7 @@ jobs:
       inputs:
         cwd: ${{ parameters.projectPath }}
         gradleWrapperFile: ${{ parameters.projectPath }}/gradlew
-        options: '--refresh-dependencies --scan -s --max-workers 6 -PrunOnCI=true ${{ parameters.directoriesConf }} ${{ parameters.repositoriesConf }}'
+        options: '--refresh-dependencies --scan -s --max-workers 6 -PrunOnCI=true ${{ parameters.directoriesConf }} ${{ parameters.repositoriesConf }} -PbuildID=$(Build.BuildId)'
         gradleOptions: '-Xmx3072m'
         javaHomeOption: 'JDKVersion'
         jdkVersionOption: '17'
@@ -358,7 +358,7 @@ jobs:
       inputs:
         cwd: ${{ parameters.projectPath }}
         gradleWrapperFile: ${{ parameters.projectPath }}/gradlew
-        options: '--refresh-dependencies --scan -s --max-workers 6 -PrunOnCI=true ${{ parameters.directoriesConf }} ${{ parameters.repositoriesConf }}'
+        options: '--refresh-dependencies --scan -s --max-workers 6 -PrunOnCI=true ${{ parameters.directoriesConf }} ${{ parameters.repositoriesConf }} -PbuildID=$(Build.BuildId)'
         gradleOptions: '-Xmx3072m'
         javaHomeOption: 'JDKVersion'
         jdkVersionOption: '17'
@@ -570,7 +570,7 @@ jobs:
       inputs:
         cwd: ${{ parameters.projectPath }}
         gradleWrapperFile: ${{ parameters.projectPath }}/gradlew
-        options: '-s --max-workers 6 ${{ parameters.directoriesConf }} ${{ parameters.repositoriesConf }}'
+        options: '-s --max-workers 6 ${{ parameters.directoriesConf }} ${{ parameters.repositoriesConf }} -PbuildID=$(Build.BuildId)'
         gradleOptions: '-Xmx3072m'
         javaHomeOption: 'JDKVersion'
         jdkVersionOption: '17'
