@@ -111,6 +111,11 @@ parameters:
   type: string
   default: 'startMSSQL dbPrepare test ishUnitTestReport -x=containerClean'
 
+  # Enable immutable images when created for Git tags.
+- name: lockImages
+  type: boolean
+  default: true
+
 jobs:
 - job: CI${{ parameters.id }}
   pool: '${{ parameters.agentPool }}'
@@ -224,6 +229,7 @@ jobs:
               runGebTest:                     ${{ parameters.runGebTest }}
               gebTestTasks:                   ${{ parameters.gebTestTasks }}
               gradleBuildTask:                ${{ parameters.gradleBuildTask }}
+              lockImages:                     ${{ parameters.lockImages }}
 
           EOF
 
@@ -538,6 +544,10 @@ jobs:
               id:                             ${REPOSITORY}:${TAG}
           EOF
 
+          echo "##vso[task.setvariable variable=tag]${TAG}"
+          echo "##vso[task.setvariable variable=imageName]${IMAGE_BASE_NAME}"
+          echo "##vso[task.setvariable variable=registry]${REGISTRY}"
+
     - task: PublishPipelineArtifact@1
       timeoutInMinutes: 5
       displayName: Provide geb test log files
@@ -578,6 +588,32 @@ jobs:
         publishJUnitResults: false
         tasks: 'clean containerClean'
       condition: succeededOrFailed()
+
+    # If the parameter lockImages is true and the Build.SourceBranch is a tag, 
+    # then the generated Docker images in the ACR will be made non-overwritable and non-deletable.
+    - task: AzureCLI@2
+      timeoutInMinutes: 5
+      condition: and(succeeded(), eq('${{ parameters.lockImages }}', true), startsWith(variables['Build.SourceBranch'], 'refs/tags/'))
+      displayName: "Set image attributes"
+      env:
+        TAG: $(tag)
+        IMAGE_NAME: $(imageName)
+        REGISTRY: $(registry)
+      inputs:
+        azureSubscription: '$(REPO_SERVICE_CONNECTION_ARM)'
+        scriptType: bash
+        scriptLocation: inlineScript
+        inlineScript: |
+
+          #!/bin/bash
+          set -e
+
+          # Update the ssr image
+          az acr repository update \
+            --name "${REGISTRY}" \
+            --image "${IMAGE_NAME}:${TAG}" \
+            --delete-enabled false \
+            --write-enabled false
 
     - task: Bash@3
       timeoutInMinutes: 5
