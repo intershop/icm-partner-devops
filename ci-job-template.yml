@@ -608,7 +608,7 @@ jobs:
           #!/bin/bash
           set -e
 
-          # Update the ssr image
+          # Update the image
           az acr repository update \
             --name "${REGISTRY}" \
             --image "${IMAGE_NAME}:${TAG}" \
