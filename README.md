@@ -53,7 +53,7 @@ After that, in Azure DevOps a new pipeline has to be created from this file.
 | runGebTest | Specifies whether all gebTest tasks should run; defaults to 'true'. | true | Yes |
 | gebTestTasks | gradle gebTest tasks. | 'startSolrCloud startMailSrv startAS startWA startWAA rebuildSearchIndex gebTest' | Yes |
 | gradleBuildTask | gradle build tasks. | 'startMSSQL dbPrepare test ishUnitTestReport -x=containerClean' | Yes |
-| lockImages | pecify whether an image built based on a Git tag should be locked. | true |  |
+| lockImages | pecify whether an image built based on a Git tag should be locked in the Azure container registry. | true |  |
 
 ## Important information:
 
