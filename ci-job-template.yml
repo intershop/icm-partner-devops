@@ -116,6 +116,35 @@ parameters:
   type: boolean
   default: true
 
+  # parameters for code analysis plugin configuration with Gradle v3
+  # sonarqube
+- name: sonarQubeEnabled
+  type: boolean
+  default: false
+
+- name: sonarQubePluginVersion
+  type: string
+  default: '2.6.1'
+
+  # CheckStyle
+- name: checkStyleEnabled
+  type: boolean
+  default: false
+
+  # PMD
+- name: pmdEnabled
+  type: boolean
+  default: false
+
+  # SpotBugs
+- name: spotBugsEnabled
+  type: boolean
+  default: false
+
+- name: spotBugsPluginVersion
+  type: string
+  default: '4.7.0'
+
 jobs:
 - job: CI${{ parameters.id }}
   pool: '${{ parameters.agentPool }}'
@@ -233,6 +262,14 @@ jobs:
               gradleBuildTask:                ${{ parameters.gradleBuildTask }}
               lockImages:                     ${{ parameters.lockImages }}
 
+              # Code Analysis
+              sonarQubeRunAnalysis:           ${{ parameters.sonarQubeEnabled }}
+              sonarQubeGradlePluginVersion:   ${{ parameters.sonarQubePluginVersion }}
+              checkStyleRunAnalysis:          ${{ parameters.checkStyleEnabled }}
+              pmdRunAnalysis:                 ${{ parameters.pmdEnabled }}
+              spotBugsAnalysis:               ${{ parameters.spotBugsEnabled}}
+              spotbugsGradlePluginVersion:    ${{ parameters.spotBugsPluginVersion }}
+              
           EOF
 
     # This task is necessary for the version calculation.
@@ -284,7 +321,7 @@ jobs:
         jdkArchitectureOption: 'x64'
         jdkSourceOption: 'PreInstalled'
 
-    - task: Gradle@2
+    - task: Gradle@3
       timeoutInMinutes: 10
       displayName: Check version
       continueOnError: true
@@ -298,7 +335,7 @@ jobs:
         publishJUnitResults: false
         tasks: '-version'
 
-    - task: Gradle@2
+    - task: Gradle@3
       displayName: Clean up container (start)
       continueOnError: true
       inputs:
@@ -313,7 +350,7 @@ jobs:
         tasks: 'clean containerClean'
 
     # the task contains the publishing of test results
-    - task: Gradle@2
+    - task: Gradle@3
       displayName: Gradle build
       continueOnError: false
       inputs:
@@ -326,8 +363,15 @@ jobs:
         jdkArchitectureOption: 'x64'
         publishJUnitResults: true
         tasks: '${{ parameters.gradleBuildTask }}'
+        # Code Analysis
+        sonarQubeRunAnalysis: ${{ parameters.sonarQubeEnabled }}
+        sonarQubeGradlePluginVersion: '${{ parameters.sonarQubePluginVersion }}'
+        checkStyleRunAnalysis: ${{ parameters.checkStyleEnabled }}
+        pmdRunAnalysis: ${{ parameters.pmdEnabled }}
+        spotBugsAnalysis: ${{ parameters.spotBugsEnabled}}
+        spotbugsGradlePluginVersion: '${{ parameters.spotBugsPluginVersion }}'
 
-    - task: Gradle@2
+    - task: Gradle@3
       displayName: Gradle geb tests
       condition: and(succeeded(), eq('${{ parameters.runGebTest }}', 'true'))
       continueOnError: false
@@ -360,7 +404,7 @@ jobs:
           docker logs ${{ parameters.containerPrefix }}-as &> as_log.txt
 
     # the task contains the publishing of test results
-    - task: Gradle@2
+    - task: Gradle@3
       displayName: Gradle publish artifacts
       continueOnError: false
       inputs:
@@ -583,7 +627,7 @@ jobs:
 #        artifactName: test_geb_artifacts${{ parameters.id }}
 #      condition: succeededOrFailed()
 
-    - task: Gradle@2
+    - task: Gradle@3
       timeoutInMinutes: 10
       displayName: Clean up container (finish)
       inputs:
