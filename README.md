@@ -53,7 +53,24 @@ After that, in Azure DevOps a new pipeline has to be created from this file.
 | runGebTest | Specifies whether all gebTest tasks should run; defaults to 'true'. | true | Yes |
 | gebTestTasks | gradle gebTest tasks. | 'startSolrCloud startMailSrv startAS startWA startWAA rebuildSearchIndex gebTest' | Yes |
 | gradleBuildTask | gradle build tasks. | 'startMSSQL dbPrepare test ishUnitTestReport -x=containerClean' | Yes |
-| lockImages | pecify whether an image built based on a Git tag should be locked in the Azure container registry. | true |  |
+| lockImages | Specify whether an image built based on a Git tag should be locked in the Azure container registry. | true |  |
+| preHookTemplate | Inject additional steps into the current job. This can be done by defining additional templates, which are executed before the main steps of the current job. Just create according template files and pass their names to the following parameters. '@self' is important, otherwise the templates would be expected at the same location as ci-job-template.yml. <filename>@self | |  |
+| postHookTemplate | Inject additional steps into the current job. This can be done by defining additional templates, which are executed after the main steps of the current job. Just create according template files and pass their names to the following parameters. '@self' is important, otherwise the templates would be expected at the same location as ci-job-template.yml. <filename>@self | |  |
+| sonarQubeEnabled | Specifies whether SonarQube analysis should be enabled. | false |  |
+| sonarQubePluginVersion | Specifies the version of the SonarQube plugin to be used for code analysis. | 2.6.1 |  |
+| checkStyleEnabled | Specifies whether CheckStyle analysis should be enabled. | false |  |
+| pmdEnabled | Specifies whether PMD analysis should be enabled. | false |  |
+| spotBugsEnabled | Specifies whether SpotBugs analysis should be enabled. | false |  |
+| spotBugsPluginVersion | Specifies the version of the SpotBugs plugin to be used for code analysis. | 4.7.0 |  |
+
+### preHookTemplate/postHookTemplate
+This is a very simple example of a pre- or postHookTemplate:
+```
+steps:
+  - script: |
+      echo "Hello world"
+    displayName: "hello world"
+```
 
 ## Important information:
 
