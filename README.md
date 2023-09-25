@@ -62,6 +62,7 @@ After that, in Azure DevOps a new pipeline has to be created from this file.
 | pmdEnabled | Specifies whether PMD analysis should be enabled. | false |  |
 | spotBugsEnabled | Specifies whether SpotBugs analysis should be enabled. | false |  |
 | spotBugsPluginVersion | Specifies the version of the SpotBugs plugin to be used for code analysis. | 4.7.0 |  |
+| retagExistingImages | Specify whether to attempt to retag the image instead of rebuilding it. When enabled, it will search for already built images based on the commit ID and re-tag them. | false |  |
 
 ### preHookTemplate/postHookTemplate
 This is a very simple example of a pre- or postHookTemplate:
