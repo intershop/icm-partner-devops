@@ -132,6 +132,10 @@ parameters:
   type: boolean
   default: false
 
+- name: sqGradlePluginVersionChoice
+  type: string
+  default: 'specify'
+
 - name: sonarQubePluginVersion
   type: string
   default: '2.6.1'
@@ -275,6 +279,7 @@ jobs:
 
               # Code Analysis
               sonarQubeRunAnalysis:           ${{ parameters.sonarQubeEnabled }}
+              sqGradlePluginVersionChoice:    ${{ parameters.sqGradlePluginVersionChoice }}
               sonarQubeGradlePluginVersion:   ${{ parameters.sonarQubePluginVersion }}
               checkStyleRunAnalysis:          ${{ parameters.checkStyleEnabled }}
               pmdRunAnalysis:                 ${{ parameters.pmdEnabled }}
@@ -376,6 +381,7 @@ jobs:
         tasks: '${{ parameters.gradleBuildTask }}'
         # Code Analysis
         sonarQubeRunAnalysis: ${{ parameters.sonarQubeEnabled }}
+        sqGradlePluginVersionChoice: ${{ parameters.sqGradlePluginVersionChoice }}
         sonarQubeGradlePluginVersion: '${{ parameters.sonarQubePluginVersion }}'
         checkStyleRunAnalysis: ${{ parameters.checkStyleEnabled }}
         pmdRunAnalysis: ${{ parameters.pmdEnabled }}

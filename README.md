@@ -57,6 +57,7 @@ After that, in Azure DevOps a new pipeline has to be created from this file.
 | preHookTemplate | Inject additional steps into the current job. This can be done by defining additional templates, which are executed before the main steps of the current job. Just create according template files and pass their names to the following parameters. '@self' is important, otherwise the templates would be expected at the same location as ci-job-template.yml. <filename>@self | |  |
 | postHookTemplate | Inject additional steps into the current job. This can be done by defining additional templates, which are executed after the main steps of the current job. Just create according template files and pass their names to the following parameters. '@self' is important, otherwise the templates would be expected at the same location as ci-job-template.yml. <filename>@self | |  |
 | sonarQubeEnabled | Specifies whether SonarQube analysis should be enabled. | false |  |
+| sqGradlePluginVersionChoice | Specifies the SonarQube Gradle plugin version to use. Declare the version in the Gradle configuration file, or specify a version with this string. Allowed values: specify (Specify version number), build (Use plugin applied in your build.gradle). | specify |
 | sonarQubePluginVersion | Specifies the version of the SonarQube plugin to be used for code analysis. | 2.6.1 |  |
 | checkStyleEnabled | Specifies whether CheckStyle analysis should be enabled. | false |  |
 | pmdEnabled | Specifies whether PMD analysis should be enabled. | false |  |
@@ -71,6 +72,56 @@ steps:
       echo "Hello world"
     displayName: "hello world"
 ```
+
+### SonarCloud configuration example
+
+1. Create pre and post hook templates
+   - create directory ```templates``` in your project
+   - Pre hook template ```templates/prehooktemplate.yml```
+   
+    ```
+    steps:
+       - task: SonarCloudPrepare@1
+         inputs:
+             SonarCloud: '<SonarCloud service connection>'
+             organization: '<SonarCloud organization>'
+             scannerMode: 'Other'
+             extraProperties: |
+                 # Additional properties that will be passed to the scanner,
+                 # Put one key=value per line, example:
+                 # sonar.exclusions=**/*.bin
+                 sonar.projectKey=<SonarCloud project key>
+                 sonar.projectName=<SonarCloud project name>   
+    ```
+    - Post hook template ```templates/posthooktemplate.yml```
+
+    ```
+    steps:
+      - task: SonarCloudPublish@1
+        inputs:
+          pollingTimeoutSec: '300'
+    ```
+
+2. Adapt template configuration ```azure-pipelines.yml```
+
+    ```
+        - template: ci-job-template.yml@icm-partner-devops
+          parameters:
+            # These parameters must not be changed. They are used to pass variables to the ci-job templaten, which
+            # are defined by library icm11-build-configuration.
+            agentPool:                          $(BUILD_AGENT_POOL)
+            dockerRepoICMServiceConnection:     $(INTERSHOP_REPO_SERVICE_CONNECTION)
+            dockerRepoICM:                      $(INTERSHOP_REPO_PATH)
+            acrServiceConnection:               $(REPO_SERVICE_CONNECTION)
+            acr:                                $(REPO_PATH)
+            artifactsFeed:                      $(ARTIFACT_FEED)
+            preHookTemplate:                    templates/prehooktemplate.yml@self
+            postHookTemplate:                   templates/posthooktemplate.yml@self
+            sonarQubeEnabled:                   true
+            sqGradlePluginVersionChoice:        build
+    ```
+
+The version of the Sonar Gradle plugin is used from build.gradle(.kts) script.
 
 ## Important information:
 
