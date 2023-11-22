@@ -76,7 +76,7 @@ steps:
 ### SonarCloud configuration example
 
 1. Create pre and post hook templates
-   - create director ```templates``` in your project
+   - create directory ```templates``` in your project
    - Pre hook template ```templates/prehooktemplate.yml```
    
     ```
