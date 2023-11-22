@@ -132,6 +132,10 @@ parameters:
   type: boolean
   default: false
 
+- name: sqGradlePluginVersionChoice
+  type: string
+  default: 'specify'
+
 - name: sonarQubePluginVersion
   type: string
   default: '2.6.1'
@@ -168,10 +172,6 @@ jobs:
     # See: https://learn.microsoft.com/en-us/azure/devops/pipelines/release/caching?view=azure-devops#gradle
     - name: GRADLE_USER_HOME
       value: ${{ parameters.gradleUserHome }}
-    - name: YQ_VERSION
-      value: v4.33.3
-    - name: YQ_BINARY
-      value: yq_linux_amd64
 
   steps:
     # Checkout all repositories
@@ -279,6 +279,7 @@ jobs:
 
               # Code Analysis
               sonarQubeRunAnalysis:           ${{ parameters.sonarQubeEnabled }}
+              sqGradlePluginVersionChoice:    ${{ parameters.sqGradlePluginVersionChoice }}
               sonarQubeGradlePluginVersion:   ${{ parameters.sonarQubePluginVersion }}
               checkStyleRunAnalysis:          ${{ parameters.checkStyleEnabled }}
               pmdRunAnalysis:                 ${{ parameters.pmdEnabled }}
@@ -380,6 +381,7 @@ jobs:
         tasks: '${{ parameters.gradleBuildTask }}'
         # Code Analysis
         sonarQubeRunAnalysis: ${{ parameters.sonarQubeEnabled }}
+        sqGradlePluginVersionChoice: ${{ parameters.sqGradlePluginVersionChoice }}
         sonarQubeGradlePluginVersion: '${{ parameters.sonarQubePluginVersion }}'
         checkStyleRunAnalysis: ${{ parameters.checkStyleEnabled }}
         pmdRunAnalysis: ${{ parameters.pmdEnabled }}
@@ -445,22 +447,6 @@ jobs:
     #
     # Post steps
     #
-
-    # Install YQ
-    - task: Bash@3
-      displayName: 'Install yq'
-      env:
-        VERSION: $(YQ_VERSION)
-        BINARY: $(YQ_BINARY)
-      timeoutInMinutes: 2
-      inputs:
-        targetType: 'inline'
-        script: |
-          #!/bin/bash
-          set -e
-  
-          sudo wget https://github.com/mikefarah/yq/releases/download/${VERSION}/${BINARY} -O /usr/bin/yq
-          sudo chmod +x /usr/bin/yq
     
     # Generate a build information file and push it as a pipeline artifact.
     - task: Bash@3
