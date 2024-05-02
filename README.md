@@ -63,6 +63,7 @@ After that, in Azure DevOps a new pipeline has to be created from this file.
 | pmdEnabled | Specifies whether PMD analysis should be enabled. | false |  |
 | spotBugsEnabled | Specifies whether SpotBugs analysis should be enabled. | false |  |
 | spotBugsPluginVersion | Specifies the version of the SpotBugs plugin to be used for code analysis. | 4.7.0 |  |
+| javaVersion | Specifies the JDK version to make available on the path. Use a whole number version, such as 17 or 21. | 17 | Yes |
 
 ### preHookTemplate/postHookTemplate
 This is a very simple example of a pre- or postHookTemplate:
