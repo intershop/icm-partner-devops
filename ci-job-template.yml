@@ -159,6 +159,11 @@ parameters:
   type: string
   default: '4.7.0'
 
+  # Specifies the JDK version to make available on the path. Use a whole number version, such as 17 or 21.
+- name: javaVersion
+  type: string
+  default: '17'
+
 jobs:
 - job: CI${{ parameters.id }}
   pool: '${{ parameters.agentPool }}'
@@ -195,6 +200,50 @@ jobs:
         script: |
           #!/bin/bash
           set -e
+
+          # Removal of the access token from the 'repositoriesConf' parameter
+          # Use sed to replace the text between "-PrepoPassword=" and the next space with "XXXX"
+          secureRepositoriesConf=$(echo "${{ parameters.repositoriesConf }}" | sed -E 's/(-PrepoPassword=)[^[:space:]]+/\1XXXX/g')
+
+          cat > "$(Pipeline.Workspace)/config${{ parameters.id }}.md" <<EOF
+
+          # Parameters
+              id:                             ${{ parameters.id }}
+              dockerRepoICMServiceConnection: ${{ parameters.dockerRepoICMServiceConnection }}
+              dockerRepoICM:                  ${{ parameters.dockerRepoICM }}
+              acrServiceConnection:           ${{ parameters.acrServiceConnection }}
+              acr:                            ${{ parameters.acr }}
+              artifactsFeed:                  ${{ parameters.artifactsFeed }}
+              agentPool:                      ${{ parameters.agentPool }}
+              condition:                      ${{ parameters.condition }}
+              dependsOn:                      ${{ parameters.dependsOn }}
+              projectPath:                    ${{ parameters.projectPath }}
+              envPath:                        ${{ parameters.envPath }}
+              directoriesConf:                ${{ parameters.directoriesConf }}
+              repositoriesConf:               ${secureRepositoriesConf}
+              gradleUserHome:                 ${{ parameters.gradleUserHome }}
+              containerPrefix:                ${{ parameters.containerPrefix }}
+              jobTimeoutInMinutes:            ${{ parameters.jobTimeoutInMinutes }}
+              runGebTest:                     ${{ parameters.runGebTest }}
+              gebTestTasks:                   ${{ parameters.gebTestTasks }}
+              gradleBuildTask:                ${{ parameters.gradleBuildTask }}
+              lockImages:                     ${{ parameters.lockImages }}
+              preHookTemplate:                ${{ parameters.preHookTemplate }}
+              postHookTemplate:               ${{ parameters.postHookTemplate }}
+
+              # Code Analysis
+              sonarQubeRunAnalysis:           ${{ parameters.sonarQubeEnabled }}
+              sqGradlePluginVersionChoice:    ${{ parameters.sqGradlePluginVersionChoice }}
+              sonarQubeGradlePluginVersion:   ${{ parameters.sonarQubePluginVersion }}
+              checkStyleRunAnalysis:          ${{ parameters.checkStyleEnabled }}
+              pmdRunAnalysis:                 ${{ parameters.pmdEnabled }}
+              spotBugsAnalysis:               ${{ parameters.spotBugsEnabled}}
+              spotbugsGradlePluginVersion:    ${{ parameters.spotBugsPluginVersion }}
+
+              # Java
+              javaVersion                     ${{ parameters.javaVersion }}
+              
+          EOF
       
           if [ -z "${{ parameters.acrServiceConnection }}" ]; then
             echo "##[error] Parameter acrServiceConnection must not be empty!"
@@ -246,47 +295,10 @@ jobs:
               exit 1
             fi
           fi
-
-          # Removal of the access token from the 'repositoriesConf' parameter
-          # Use sed to replace the text between "-PrepoPassword=" and the next space with "XXXX"
-          secureRepositoriesConf=$(echo "${{ parameters.repositoriesConf }}" | sed -E 's/(-PrepoPassword=)[^[:space:]]+/\1XXXX/g')
-
-          cat > "$(Pipeline.Workspace)/config${{ parameters.id }}.md" <<EOF
-
-          # Parameters
-              id:                             ${{ parameters.id }}
-              dockerRepoICMServiceConnection: ${{ parameters.dockerRepoICMServiceConnection }}
-              dockerRepoICM:                  ${{ parameters.dockerRepoICM }}
-              acrServiceConnection:           ${{ parameters.acrServiceConnection }}
-              acr:                            ${{ parameters.acr }}
-              artifactsFeed:                  ${{ parameters.artifactsFeed }}
-              agentPool:                      ${{ parameters.agentPool }}
-              condition:                      ${{ parameters.condition }}
-              dependsOn:                      ${{ parameters.dependsOn }}
-              projectPath:                    ${{ parameters.projectPath }}
-              envPath:                        ${{ parameters.envPath }}
-              directoriesConf:                ${{ parameters.directoriesConf }}
-              repositoriesConf:               ${secureRepositoriesConf}
-              gradleUserHome:                 ${{ parameters.gradleUserHome }}
-              containerPrefix:                ${{ parameters.containerPrefix }}
-              jobTimeoutInMinutes:            ${{ parameters.jobTimeoutInMinutes }}
-              runGebTest:                     ${{ parameters.runGebTest }}
-              gebTestTasks:                   ${{ parameters.gebTestTasks }}
-              gradleBuildTask:                ${{ parameters.gradleBuildTask }}
-              lockImages:                     ${{ parameters.lockImages }}
-              preHookTemplate:                ${{ parameters.preHookTemplate }}
-              postHookTemplate:               ${{ parameters.postHookTemplate }}
-
-              # Code Analysis
-              sonarQubeRunAnalysis:           ${{ parameters.sonarQubeEnabled }}
-              sqGradlePluginVersionChoice:    ${{ parameters.sqGradlePluginVersionChoice }}
-              sonarQubeGradlePluginVersion:   ${{ parameters.sonarQubePluginVersion }}
-              checkStyleRunAnalysis:          ${{ parameters.checkStyleEnabled }}
-              pmdRunAnalysis:                 ${{ parameters.pmdEnabled }}
-              spotBugsAnalysis:               ${{ parameters.spotBugsEnabled}}
-              spotbugsGradlePluginVersion:    ${{ parameters.spotBugsPluginVersion }}
-              
-          EOF
+          if [ -z "${{ parameters.javaVersion }}" ]; then
+            echo "##[error] Parameter javaVersion must not be empty!"
+            exit 1
+          fi
 
     # This task is necessary for the version calculation.
     # Otherwise the git repo is always in detached head and
@@ -333,7 +345,7 @@ jobs:
     - task: JavaToolInstaller@0
       timeoutInMinutes: 1
       inputs:
-        versionSpec: '17'
+        versionSpec: '${{ parameters.javaVersion }}'
         jdkArchitectureOption: 'x64'
         jdkSourceOption: 'PreInstalled'
 
@@ -346,7 +358,7 @@ jobs:
         gradleWrapperFile: ${{ parameters.projectPath }}/gradlew
         gradleOptions: '-Xmx3072m'
         javaHomeOption: 'JDKVersion'
-        jdkVersionOption: '17'
+        jdkVersionOption: '${{ parameters.javaVersion }}'
         jdkArchitectureOption: 'x64'
         publishJUnitResults: false
         tasks: '-version'
@@ -360,7 +372,7 @@ jobs:
         options: '-s -i --max-workers 6 ${{ parameters.directoriesConf }} ${{ parameters.repositoriesConf }} -PbuildID=$(Build.BuildId)'
         gradleOptions: '-Xmx3072m'
         javaHomeOption: 'JDKVersion'
-        jdkVersionOption: '17'
+        jdkVersionOption: '${{ parameters.javaVersion }}'
         jdkArchitectureOption: 'x64'
         publishJUnitResults: false
         tasks: 'clean containerClean'
@@ -375,7 +387,7 @@ jobs:
         options: '--refresh-dependencies --scan -s --max-workers 6 -PrunOnCI=true ${{ parameters.directoriesConf }} ${{ parameters.repositoriesConf }} -PbuildID=$(Build.BuildId)'
         gradleOptions: '-Xmx3072m'
         javaHomeOption: 'JDKVersion'
-        jdkVersionOption: '17'
+        jdkVersionOption: '${{ parameters.javaVersion }}'
         jdkArchitectureOption: 'x64'
         publishJUnitResults: true
         tasks: '${{ parameters.gradleBuildTask }}'
@@ -398,7 +410,7 @@ jobs:
         options: '--refresh-dependencies --scan -s --max-workers 6 -PrunOnCI=true ${{ parameters.directoriesConf }} ${{ parameters.repositoriesConf }} -PbuildID=$(Build.BuildId)'
         gradleOptions: '-Xmx3072m'
         javaHomeOption: 'JDKVersion'
-        jdkVersionOption: '17'
+        jdkVersionOption: '${{ parameters.javaVersion }}'
         jdkArchitectureOption: 'x64'
         publishJUnitResults: true
         tasks: '${{ parameters.gebTestTasks }}'
@@ -430,7 +442,7 @@ jobs:
         options: '--refresh-dependencies --scan -s --max-workers 6 -PrunOnCI=true ${{ parameters.directoriesConf }} ${{ parameters.repositoriesConf }} -PbuildID=$(Build.BuildId)'
         gradleOptions: '-Xmx3072m'
         javaHomeOption: 'JDKVersion'
-        jdkVersionOption: '17'
+        jdkVersionOption: '${{ parameters.javaVersion }}'
         jdkArchitectureOption: 'x64'
         publishJUnitResults: true
         tasks: 'buildImages dockerPublish -x=check'
@@ -637,7 +649,7 @@ jobs:
         options: '-s --max-workers 6 ${{ parameters.directoriesConf }} ${{ parameters.repositoriesConf }} -PbuildID=$(Build.BuildId)'
         gradleOptions: '-Xmx3072m'
         javaHomeOption: 'JDKVersion'
-        jdkVersionOption: '17'
+        jdkVersionOption: '${{ parameters.javaVersion }}'
         jdkArchitectureOption: 'x64'
         publishJUnitResults: false
         tasks: 'clean containerClean'
