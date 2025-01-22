@@ -709,3 +709,27 @@ jobs:
         script: |
           set -e
           echo "##vso[task.uploadsummary]$(Pipeline.Workspace)/config${{ parameters.id }}.md"
+
+    # Adds a build tag based on the SourceBranch type (Pull Request, Tag, or Branch) for better build classification.
+    - task: Bash@3
+      timeoutInMinutes: 1
+      condition: always()
+      continueOnError: true
+      displayName: "Add pipeline tag based on SourceBranch type"
+      inputs:
+        targetType: 'inline'
+        script: |
+          #!/bin/bash
+          set -e
+
+          echo "Checking Build.SourceBranch: $(Build.SourceBranch)"
+    
+          if [[ "$(Build.SourceBranch)" =~ ^refs/pull/ ]]; then
+              echo "##vso[build.addbuildtag]SourceType_Git-PullRequest"
+          elif [[ "$(Build.SourceBranch)" =~ ^refs/tags/ ]]; then
+              echo "##vso[build.addbuildtag]SourceType_Git-Tag"
+          elif [[ "$(Build.SourceBranch)" =~ ^refs/heads/ ]]; then
+              echo "##vso[build.addbuildtag]SourceType_Git-Branch"
+          else
+              echo "##vso[build.addbuildtag]SourceType_Unknown"
+          fi
