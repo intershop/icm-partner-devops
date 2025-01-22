@@ -35,7 +35,7 @@ resources:
       ref: master
 
 variables:
-  # Library icm11-build-configuration is provided by Intershops DevOps Environment. It provides
+  # Library icm-build-configuration is provided by Intershops DevOps Environment. It provides
   # the following variables:
   #  - BUILD_AGENT_POOL:                  name of the build agent pool
   #  - REPO_SERVICE_CONNECTION:           service connection to the customer ACR
@@ -43,7 +43,7 @@ variables:
   #  - INTERSHOP_REPO_SERVICE_CONNECTION: service connection to the Intershop container registry
   #  - INTERSHOP_REPO_PATH:               host name and path of the Intershop container registry
   #  - ARTIFACT_FEED                      name of the icm artifacts feed
-  - group: icm11-build-configuration
+  - group: icm-build-configuration
   - name:  isVersion
     value: $[startsWith(variables['Build.SourceBranch'], 'refs/tags/version')]
 
@@ -54,7 +54,7 @@ stages:
     - template: ci-job-template.yml@icm-partner-devops
       parameters:
         # These parameters must not be changed. They are used to pass variables to the ci-job templaten, which
-        # are defined by library icm11-build-configuration.
+        # are defined by library icm-build-configuration.
         # Description of all allowed parameters: https://github.com/intershop/icm-partner-devops
         agentPool:                          $(BUILD_AGENT_POOL)
         dockerRepoICMServiceConnection:     $(INTERSHOP_REPO_SERVICE_CONNECTION)
@@ -62,3 +62,4 @@ stages:
         acrServiceConnection:               $(REPO_SERVICE_CONNECTION)
         acr:                                $(REPO_PATH)
         artifactsFeed:                      $(ARTIFACT_FEED)
+        javaVersion:                        21 # 17 for ICM11 | 21 for ICM12
