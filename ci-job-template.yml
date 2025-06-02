@@ -49,7 +49,16 @@ parameters:
   type: string
   default: ''
 
-  # Repository in ACR including host name.
+  # Name of the ARM service connection to the ACR of the project.
+  # Note: This is not a service connection for Docker.
+  # It is a service connection for the Azure Resource Manager (ARM) 
+  # with access to the Azure Container Registry (ACR) resource.
+- name: acrServiceConnectionArm
+  type: string
+  default: '$(REPO_SERVICE_CONNECTION_ARM)'
+
+  # URL of the Azure Container Registry (ACR), including the hostname.
+  # Example: <NAME_OF_ACR>.azurecr.io
 - name: acr
   type: string
   default: ''
@@ -164,6 +173,16 @@ parameters:
   type: string
   default: '17'
 
+  # Specifies whether to perform a DockerHub login before the build steps.
+- name: dockerhubLogin
+  type: boolean
+  default: false
+
+  # Name of the DockerHub registry service connection to use for login.
+- name: dockerhubServiceConnection
+  type: string
+  default: '$(DOCKERHUB_PUBLIC_SERVICE_CONNECTION)'
+
 jobs:
 - job: CI${{ parameters.id }}
   pool: '${{ parameters.agentPool }}'
@@ -212,6 +231,7 @@ jobs:
               dockerRepoICMServiceConnection: ${{ parameters.dockerRepoICMServiceConnection }}
               dockerRepoICM:                  ${{ parameters.dockerRepoICM }}
               acrServiceConnection:           ${{ parameters.acrServiceConnection }}
+              acrServiceConnectionArm:        ${{ parameters.acrServiceConnectionArm }}
               acr:                            ${{ parameters.acr }}
               artifactsFeed:                  ${{ parameters.artifactsFeed }}
               agentPool:                      ${{ parameters.agentPool }}
@@ -230,6 +250,10 @@ jobs:
               lockImages:                     ${{ parameters.lockImages }}
               preHookTemplate:                ${{ parameters.preHookTemplate }}
               postHookTemplate:               ${{ parameters.postHookTemplate }}
+
+              # Dockerhub
+              dockerhubLogin:                 ${{ parameters.dockerhubLogin }}
+              dockerhubServiceConnection:     ${{ parameters.dockerhubServiceConnection }}
 
               # Code Analysis
               sonarQubeRunAnalysis:           ${{ parameters.sonarQubeEnabled }}
@@ -331,6 +355,15 @@ jobs:
       inputs:
         containerRegistry: ${{ parameters.acrServiceConnection }}
         command: 'login'
+
+    # This function performs a dockerhub login operation only if both parameters are either true or non-empty.
+    - task: Docker@2
+      displayName: Docker Login - dockerhubServiceConnection
+      condition: and(succeeded(), ${{ eq(parameters.dockerhubLogin, true) }}, ${{ ne(parameters.dockerhubServiceConnection, '') }})
+      timeoutInMinutes: 1
+      inputs:
+        containerRegistry: ${{ parameters.dockerhubServiceConnection }}
+        command: 'login'
     
     - task: Cache@2
       timeoutInMinutes: 5
@@ -402,7 +435,7 @@ jobs:
 
     - task: Gradle@3
       displayName: Gradle geb tests
-      condition: and(succeeded(), eq('${{ parameters.runGebTest }}', 'true'))
+      condition: and(succeeded(), ${{ eq(parameters.runGebTest, true) }})
       continueOnError: false
       inputs:
         cwd: ${{ parameters.projectPath }}
@@ -417,7 +450,7 @@ jobs:
 
     - task: CmdLine@2
       displayName: docker write logs geb tests
-      condition: and(succeededOrFailed(), eq('${{ parameters.runGebTest }}', 'true'))
+      condition: and(succeededOrFailed(), ${{ eq(parameters.runGebTest, true) }})
       timeoutInMinutes: 5
       inputs:
         workingDirectory: ${{ parameters.projectPath }}
@@ -621,7 +654,7 @@ jobs:
         targetPath: '${{ parameters.projectPath }}/build/geb'
         artifactType: 'pipeline'
         artifactName: geb_test_log_files${{ parameters.id }}
-      condition: and(succeededOrFailed(), eq('${{ parameters.runGebTest }}', 'true'))
+      condition: and(succeededOrFailed(), ${{ eq(parameters.runGebTest, true) }})
 
     - task: PublishPipelineArtifact@1
       timeoutInMinutes: 5
@@ -659,14 +692,14 @@ jobs:
     # then the generated Docker images in the ACR will be made non-overwritable and non-deletable.
     - task: AzureCLI@2
       timeoutInMinutes: 5
-      condition: and(succeeded(), eq('${{ parameters.lockImages }}', true), startsWith(variables['Build.SourceBranch'], 'refs/tags/'))
+      condition: and(succeeded(), ${{ eq(parameters.lockImages, true) }}, startsWith(variables['Build.SourceBranch'], 'refs/tags/'))
       displayName: "Set image attributes"
       env:
         TAG: $(tag)
         IMAGE_NAME: $(imageName)
         REGISTRY: $(registry)
       inputs:
-        azureSubscription: '$(REPO_SERVICE_CONNECTION_ARM)'
+        azureSubscription: '${{ parameters.acrServiceConnectionArm }}'
         scriptType: bash
         scriptLocation: inlineScript
         inlineScript: |
@@ -684,7 +717,7 @@ jobs:
     - ${{ if not(eq(parameters.postHookTemplate, '')) }}:
       - template: ${{ parameters.postHookTemplate }}
 
-    # Clean up all Docker resources generated by the build.        
+    # Clean up all Docker resources generated by the build.
     - task: Bash@3
       displayName: Docker Cleanup
       timeoutInMinutes: 10

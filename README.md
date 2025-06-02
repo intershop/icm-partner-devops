@@ -40,8 +40,8 @@ After that, in Azure DevOps a new pipeline has to be created from this file.
 | dockerRepoICMServiceConnection | Name of the Service connection to the Docker repository |  | Yes |
 | dockerRepoICM | Name of Docker repository, containing the ICM-customization product images. |  | Yes |
 | artifactsFeed | Name of projects Maven repository. |  | Yes |
-| acrServiceConnection | Name of the service connection to the ACR of the project. |  | Yes |
-| acr | Repository in ACR including host name. |  | Yes |
+| acrServiceConnectionArm | Name of the Azure Resource Manager (ARM) service connection that provides access to the project's Azure Container Registry (ACR). | '$(REPO_SERVICE_CONNECTION_ARM)' | Only when `lockImages` is true |
+| acr | URL of the Azure Container Registry (ACR), including the hostname. Example: <NAME_OF_ACR>.azurecr.io |  | Yes |
 | projectPath | Specifies the name of the repository. | '$(Build.Repository.Name)' | Yes |
 | envPath | Name of the ci-configuration repository resource. When making adjustments, the 'directoriesConf' parameter must also be adjusted. | 'ci-configuration' | Yes |
 | directoriesConf | Setting required system properties of the JVM. When making adjustments, the 'envPath' parameter must also be adjusted. | '-DlicenseDir=$(Pipeline.Workspace)/s/ci-configuration/license -DconfigDir=$(Pipeline.Workspace)/s/ci-configuration/environment' | Yes |
@@ -64,6 +64,8 @@ After that, in Azure DevOps a new pipeline has to be created from this file.
 | spotBugsEnabled | Specifies whether SpotBugs analysis should be enabled. | false |  |
 | spotBugsPluginVersion | Specifies the version of the SpotBugs plugin to be used for code analysis. | 4.7.0 |  |
 | javaVersion | Specifies the JDK version to make available on the path. Use a whole number version, such as 17 or 21. | 17 | Yes |
+| dockerhubLogin | Specifies whether to perform a DockerHub login before the build steps. | false |  |
+| dockerhubServiceConnection | Name of the DockerHub registry service connection to use for login. | '$(DOCKERHUB_PUBLIC_SERVICE_CONNECTION)' | Only when `dockerhubLogin` is true |
 
 ### preHookTemplate/postHookTemplate
 This is a very simple example of a pre- or postHookTemplate:
