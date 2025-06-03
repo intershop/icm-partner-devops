@@ -356,14 +356,13 @@ jobs:
         containerRegistry: ${{ parameters.acrServiceConnection }}
         command: 'login'
 
-    # This function performs a dockerhub login operation only if both parameters are either true or non-empty.
-    - task: Docker@2
-      displayName: Docker Login - dockerhubServiceConnection
-      condition: and(succeeded(), ${{ eq(parameters.dockerhubLogin, true) }}, ${{ ne(parameters.dockerhubServiceConnection, '') }})
-      timeoutInMinutes: 1
-      inputs:
-        containerRegistry: ${{ parameters.dockerhubServiceConnection }}
-        command: 'login'
+    - ${{ if parameters.dockerhubLogin }}:
+      - task: Docker@2
+        displayName: Docker Login - dockerhubServiceConnection
+        timeoutInMinutes: 1
+        inputs:
+          containerRegistry: ${{ parameters.dockerhubServiceConnection }}
+          command: 'login'
     
     - task: Cache@2
       timeoutInMinutes: 5
@@ -690,29 +689,30 @@ jobs:
 
     # If the parameter lockImages is true and the Build.SourceBranch is a tag, 
     # then the generated Docker images in the ACR will be made non-overwritable and non-deletable.
-    - task: AzureCLI@2
-      timeoutInMinutes: 5
-      condition: and(succeeded(), ${{ eq(parameters.lockImages, true) }}, startsWith(variables['Build.SourceBranch'], 'refs/tags/'))
-      displayName: "Set image attributes"
-      env:
-        TAG: $(tag)
-        IMAGE_NAME: $(imageName)
-        REGISTRY: $(registry)
-      inputs:
-        azureSubscription: '${{ parameters.acrServiceConnectionArm }}'
-        scriptType: bash
-        scriptLocation: inlineScript
-        inlineScript: |
+    - ${{ if parameters.lockImages }}:
+      - task: AzureCLI@2
+        timeoutInMinutes: 5
+        condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/tags/'))
+        displayName: "Set image attributes"
+        env:
+          TAG: $(tag)
+          IMAGE_NAME: $(imageName)
+          REGISTRY: $(registry)
+        inputs:
+          azureSubscription: '${{ parameters.acrServiceConnectionArm }}'
+          scriptType: bash
+          scriptLocation: inlineScript
+          inlineScript: |
 
-          #!/bin/bash
-          set -e
+            #!/bin/bash
+            set -e
 
-          # Update the image
-          az acr repository update \
-            --name "${REGISTRY}" \
-            --image "${IMAGE_NAME}:${TAG}" \
-            --delete-enabled false \
-            --write-enabled false
+            # Update the image
+            az acr repository update \
+              --name "${REGISTRY}" \
+              --image "${IMAGE_NAME}:${TAG}" \
+              --delete-enabled false \
+              --write-enabled false
 
     - ${{ if not(eq(parameters.postHookTemplate, '')) }}:
       - template: ${{ parameters.postHookTemplate }}
