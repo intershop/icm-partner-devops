@@ -183,6 +183,11 @@ parameters:
   type: string
   default: '$(DOCKERHUB_PUBLIC_SERVICE_CONNECTION)'
 
+  # Resource name of this template repository.
+- name: templateRepository
+  type: string
+  default: icm-partner-devops
+
 jobs:
 - job: CI${{ parameters.id }}
   pool: '${{ parameters.agentPool }}'
@@ -197,6 +202,82 @@ jobs:
     - name: GRADLE_USER_HOME
       value: ${{ parameters.gradleUserHome }}
 
+    # General variables
+    - name: TEMP_CONFIG_FILE_PATH
+      value: $(Pipeline.Workspace)/config${{ parameters.id }}.md
+    - name: TEMP_GEB_LOG_DIR # Geb project path where logs should be saved
+      value: $(Pipeline.Workspace)/s/${{ parameters.projectPath }}/build/geb
+
+    # Parameters as variables
+    - name: TEMP_TEMPLATE_DIRECTORY
+      value: $(Pipeline.Workspace)/s/${{ parameters.templateRepository }}
+    - name: TEMP_ID
+      value: ${{ parameters.id }}
+    - name: TEMP_DOCKER_REPO_ICM_SERVICE_CONNECTION
+      value: ${{ parameters.dockerRepoICMServiceConnection }}
+    - name: TEMP_DOCKER_REPO_ICM
+      value: ${{ parameters.dockerRepoICM }}
+    - name: TEMP_ACR_SERVICE_CONNECTION
+      value: ${{ parameters.acrServiceConnection }}
+    - name: TEMP_ACR_SERVICE_CONNECTION_ARM
+      value: ${{ parameters.acrServiceConnectionArm }}
+    - name: TEMP_ACR
+      value: ${{ parameters.acr }}
+    - name: TEMP_ARTIFACTS_FEED
+      value: ${{ parameters.artifactsFeed }}
+    - name: TEMP_AGENT_POOL
+      value: ${{ parameters.agentPool }}
+    - name: TEMP_CONDITION
+      value: ${{ parameters.condition }}
+    - name: TEMP_DEPENDS_ON
+      value: ${{ parameters.dependsOn }}
+    - name: TEMP_PROJECT_PATH
+      value: ${{ parameters.projectPath }}
+    - name: TEMP_ENV_PATH
+      value: ${{ parameters.envPath }}
+    - name: TEMP_DIRECTORIES_CONF
+      value: ${{ parameters.directoriesConf }}
+    - name: TEMP_REPOSITORIES_CONF
+      value: ${{ parameters.repositoriesConf }}
+    - name: TEMP_GRADLE_USER_HOME
+      value: ${{ parameters.gradleUserHome }}
+    - name: TEMP_CONTAINER_PREFIX
+      value: ${{ parameters.containerPrefix }}
+    - name: TEMP_JOB_TIMEOUT_IN_MINUTES
+      value: ${{ parameters.jobTimeoutInMinutes }}
+    - name: TEMP_RUN_GEB_TEST
+      value: ${{ parameters.runGebTest }}
+    - name: TEMP_GEB_TEST_TASKS
+      value: ${{ parameters.gebTestTasks }}
+    - name: TEMP_GRADLE_BUILD_TASK
+      value: ${{ parameters.gradleBuildTask }}
+    - name: TEMP_LOCK_IMAGES
+      value: ${{ parameters.lockImages }}
+    - name: TEMP_PRE_HOOK_TEMPLATE
+      value: ${{ parameters.preHookTemplate }}
+    - name: TEMP_POST_HOOK_TEMPLATE
+      value: ${{ parameters.postHookTemplate }}
+    - name: TEMP_DOCKERHUB_LOGIN
+      value: ${{ parameters.dockerhubLogin }}
+    - name: TEMP_DOCKERHUB_SERVICE_CONNECTION
+      value: ${{ parameters.dockerhubServiceConnection }}
+    - name: TEMP_SONAR_QUBE_ENABLED
+      value: ${{ parameters.sonarQubeEnabled }}
+    - name: TEMP_SQ_GRADLE_PLUGIN_VERSION_CHOICE
+      value: ${{ parameters.sqGradlePluginVersionChoice }}
+    - name: TEMP_SONAR_QUBE_PLUGIN_VERSION
+      value: ${{ parameters.sonarQubePluginVersion }}
+    - name: TEMP_CHECK_STYLE_ENABLED
+      value: ${{ parameters.checkStyleEnabled }}
+    - name: TEMP_PMD_ENABLED
+      value: ${{ parameters.pmdEnabled }}
+    - name: TEMP_SPOT_BUGS_ENABLED
+      value: ${{ parameters.spotBugsEnabled }}
+    - name: TEMP_SPOT_BUGS_PLUGIN_VERSION
+      value: ${{ parameters.spotBugsPluginVersion }}
+    - name: TEMP_JAVA_VERSION
+      value: ${{ parameters.javaVersion }}
+
   steps:
     # Checkout all repositories
     - checkout: self
@@ -206,141 +287,33 @@ jobs:
     - checkout: ${{ parameters.envPath }}
       path: s/${{ parameters.envPath }}
       clean: true
+    - checkout: ${{ parameters.templateRepository }}
+      clean: true
+      persistCredentials: false
+      fetchDepth: 1
 
     - ${{ if not(eq(parameters.preHookTemplate, '')) }}:
       - template: ${{ parameters.preHookTemplate }}
 
     # Check all parameters
     - task: Bash@3
-      displayName: Check parameters
-      timeoutInMinutes: 5
+      displayName: Validate pipeline parameters
+      timeoutInMinutes: 2
       inputs:
-        targetType: 'inline'
-        script: |
-          #!/bin/bash
-          set -e
-
-          # Removal of the access token from the 'repositoriesConf' parameter
-          # Use sed to replace the text between "-PrepoPassword=" and the next space with "XXXX"
-          secureRepositoriesConf=$(echo "${{ parameters.repositoriesConf }}" | sed -E 's/(-PrepoPassword=)[^[:space:]]+/\1XXXX/g')
-
-          cat > "$(Pipeline.Workspace)/config${{ parameters.id }}.md" <<EOF
-
-          # Parameters
-              id:                             ${{ parameters.id }}
-              dockerRepoICMServiceConnection: ${{ parameters.dockerRepoICMServiceConnection }}
-              dockerRepoICM:                  ${{ parameters.dockerRepoICM }}
-              acrServiceConnection:           ${{ parameters.acrServiceConnection }}
-              acrServiceConnectionArm:        ${{ parameters.acrServiceConnectionArm }}
-              acr:                            ${{ parameters.acr }}
-              artifactsFeed:                  ${{ parameters.artifactsFeed }}
-              agentPool:                      ${{ parameters.agentPool }}
-              condition:                      ${{ parameters.condition }}
-              dependsOn:                      ${{ parameters.dependsOn }}
-              projectPath:                    ${{ parameters.projectPath }}
-              envPath:                        ${{ parameters.envPath }}
-              directoriesConf:                ${{ parameters.directoriesConf }}
-              repositoriesConf:               ${secureRepositoriesConf}
-              gradleUserHome:                 ${{ parameters.gradleUserHome }}
-              containerPrefix:                ${{ parameters.containerPrefix }}
-              jobTimeoutInMinutes:            ${{ parameters.jobTimeoutInMinutes }}
-              runGebTest:                     ${{ parameters.runGebTest }}
-              gebTestTasks:                   ${{ parameters.gebTestTasks }}
-              gradleBuildTask:                ${{ parameters.gradleBuildTask }}
-              lockImages:                     ${{ parameters.lockImages }}
-              preHookTemplate:                ${{ parameters.preHookTemplate }}
-              postHookTemplate:               ${{ parameters.postHookTemplate }}
-
-              # Dockerhub
-              dockerhubLogin:                 ${{ parameters.dockerhubLogin }}
-              dockerhubServiceConnection:     ${{ parameters.dockerhubServiceConnection }}
-
-              # Code Analysis
-              sonarQubeRunAnalysis:           ${{ parameters.sonarQubeEnabled }}
-              sqGradlePluginVersionChoice:    ${{ parameters.sqGradlePluginVersionChoice }}
-              sonarQubeGradlePluginVersion:   ${{ parameters.sonarQubePluginVersion }}
-              checkStyleRunAnalysis:          ${{ parameters.checkStyleEnabled }}
-              pmdRunAnalysis:                 ${{ parameters.pmdEnabled }}
-              spotBugsAnalysis:               ${{ parameters.spotBugsEnabled}}
-              spotbugsGradlePluginVersion:    ${{ parameters.spotBugsPluginVersion }}
-
-              # Java
-              javaVersion                     ${{ parameters.javaVersion }}
-              
-          EOF
-      
-          if [ -z "${{ parameters.acrServiceConnection }}" ]; then
-            echo "##[error] Parameter acrServiceConnection must not be empty!"
-            exit 1
-          fi
-          if [ -z "${{ parameters.artifactsFeed }}" ]; then
-            echo "##[error] Parameter artifactsFeed must not be empty!"
-            exit 1
-          fi
-          if [ -z "${{ parameters.dockerRepoICMServiceConnection }}" ]; then
-            echo "##[error] Parameter dockerRepoICMServiceConnection must not be empty!"
-            exit 1
-          fi
-          if [ -z "${{ parameters.dockerRepoICM }}" ]; then
-            echo "##[error] Parameter dockerRepoICM must not be empty!"
-            exit 1
-          fi
-          if [ -z "${{ parameters.acr }}" ]; then
-            echo "##[error] Parameter acr must not be empty!"
-            exit 1
-          fi
-          if [ -z "${{ parameters.projectPath }}" ]; then
-            echo "##[error] Parameter projectPath must not be empty!"
-            exit 1
-          fi
-          if [ -z "${{ parameters.envPath }}" ]; then
-            echo "##[error] Parameter envPath must not be empty!"
-            exit 1
-          fi
-          if [ -z "${{ parameters.directoriesConf }}" ]; then
-            echo "##[error] Parameter directoriesConf must not be empty!"
-            exit 1
-          fi
-          if [ -z "${{ parameters.repositoriesConf }}" ]; then
-            echo "##[error] Parameter repositoriesConf must not be empty!"
-            exit 1
-          fi
-          if [ -z "${{ parameters.gradleUserHome }}" ]; then
-            echo "##[error] Parameter gradleUserHome must not be empty!"
-            exit 1
-          fi
-          if [ -z "${{ parameters.containerPrefix }}" ]; then
-            echo "##[error] Parameter containerPrefix must not be empty!"
-            exit 1
-          fi
-          if [ ! -z "${{ parameters.id }}" ]; then
-            if echo "${{ parameters.id }}" | grep -q '[^a-zA-Z0-9_]'; then
-              echo "##[error] Parameter id has to consist of characters, numbers and _ only!"
-              exit 1
-            fi
-          fi
-          if [ -z "${{ parameters.javaVersion }}" ]; then
-            echo "##[error] Parameter javaVersion must not be empty!"
-            exit 1
-          fi
+        filePath: '$(TEMP_TEMPLATE_DIRECTORY)/tasks/validate_parameters.sh'
+      env:
+        MAPPED_TEMP_REPOSITORIES_CONF: $(TEMP_REPOSITORIES_CONF)
 
     # This task is necessary for the version calculation.
     # Otherwise the git repo is always in detached head and
     # SNAPSHOTS are not longer separeted by their name.
-    - task: CmdLine@2
+    - task: Bash@3
       timeoutInMinutes: 5
       displayName: Checkout $(Build.SourceBranchName)
       inputs:
         workingDirectory: ${{ parameters.projectPath }}
-        script: |
-          BRANCH="${BUILD_SOURCEBRANCHNAME}"
-          if [[ "${BUILD_SOURCEBRANCH}" =~ ^refs/heads.* ]]; then
-            BRANCH="${BUILD_SOURCEBRANCH/refs\/heads\//}"
-          fi
-          git fetch --all
-          echo "checkout ${BRANCH}"
-          git checkout ${BRANCH}
-      condition: and(eq(variables.isVersion, false), ne(variables['Build.SourceBranchName'], 'merge'))
+        filePath: '$(TEMP_TEMPLATE_DIRECTORY)/tasks/checkout_repository_resolver.sh'
+      condition: ne(variables['Build.SourceBranchName'], 'merge')
 
     - task: Docker@2
       displayName: Docker Login - dockerRepoICMServiceConnection
@@ -409,7 +382,6 @@ jobs:
         publishJUnitResults: false
         tasks: 'clean containerClean'
 
-    # the task contains the publishing of test results
     - task: Gradle@3
       displayName: Gradle build
       continueOnError: false
@@ -447,22 +419,13 @@ jobs:
         publishJUnitResults: true
         tasks: '${{ parameters.gebTestTasks }}'
 
-    - task: CmdLine@2
-      displayName: docker write logs geb tests
+    - task: Bash@3
+      displayName: Write Docker logs from geb tests
       condition: and(succeededOrFailed(), ${{ eq(parameters.runGebTest, true) }})
       timeoutInMinutes: 5
       inputs:
         workingDirectory: ${{ parameters.projectPath }}
-        script: |
-          docker ps
-          mkdir -p build/geb
-          cd build/geb/
-          echo log ${{ parameters.containerPrefix }}-wa
-          docker logs ${{ parameters.containerPrefix }}-wa &> wa_log.txt
-          echo log ${{ parameters.containerPrefix }}-waa
-          docker logs ${{ parameters.containerPrefix }}-waa &> waa_log.txt
-          echo log ${{ parameters.containerPrefix }}-as
-          docker logs ${{ parameters.containerPrefix }}-as &> as_log.txt
+        filePath: '$(TEMP_TEMPLATE_DIRECTORY)/tasks/write_docker_logs.sh'
 
     # the task contains the publishing of test results
     - task: Gradle@3
@@ -499,158 +462,13 @@ jobs:
       env:
         DOCKER_IMAGE_DIRECTORY: ${{ parameters.projectPath }}/build/.docker
       inputs:
-        targetType: 'inline'
-        script: |
-          #!/bin/bash
-          set -e
-
-          #######################################
-          # This script reads the labels of a Docker image and creates an imageProperty file.
-          # Globals:
-          #   DOCKER_IMAGE_DIRECTORY: Path to the directory where the 'imageId' file can be found.
-          # Arguments:
-          #   None
-          #######################################
-
-          ###############################################################
-          # Script Parameters                                           #
-          ###############################################################
-
-          # Create a temporary folder for storing intermediate files
-          TMP_CUSTOM_DIR="$(mktemp -d -t ci-icm-XXXXXXXXXX)"
-          IMAGE_PROPERTIES_FILE="${TMP_CUSTOM_DIR}/imageProperties.yaml"
-
-          ###############################################################
-          # Script                                                      #
-          ###############################################################
-
-          # Check if the image directory variable is set
-          if [ -z "${DOCKER_IMAGE_DIRECTORY}" ]; then
-            echo "ERROR: DOCKER_IMAGE_DIRECTORY variable is not set"
-            exit 1
-          fi
-
-          # Use 'find' to locate files ending in "-imageId.txt".
-          # Sort the list by modification time (newest first).
-          # Only return the first file in the list (the newest).
-          IMAGE_FILE=$(find "${DOCKER_IMAGE_DIRECTORY}" -name '*-imageId.txt' -type f -printf "%T@ %p\n" | sort -n | tail -1 | cut -f2- -d" ")
-
-          # Check if an image file was found
-          if [ -z "${IMAGE_FILE}" ]; then
-            echo "ERROR: No image file found in ${DOCKER_IMAGE_DIRECTORY}"
-            exit 1
-          fi
-
-          # Check if the image file exists
-          if [ ! -f "${IMAGE_FILE}" ]; then
-            echo "ERROR: ${IMAGE_FILE} does not exist"
-            exit 1
-          fi
-
-          # Extract the image name from the file
-          IMAGE_NAME=$(cat "${IMAGE_FILE}" | tr -d '\n\r')
-
-          # Check if the image name is valid
-          if [ -z "${IMAGE_NAME}" ]; then
-            echo "ERROR: Image name not found in ${IMAGE_FILE}"
-            exit 1
-          fi
-
-          # Extract the repository and tag from the image name
-          IFS=':' read -r REPOSITORY TAG <<< "${IMAGE_NAME}"
-
-          # Check if the repository and tag are valid
-          if [ -z "${REPOSITORY}" ] || [ -z "${TAG}" ]; then
-            echo "ERROR: Invalid image name format in ${IMAGE_FILE}"
-            exit 1
-          fi
-
-          # Split image name in registry and image base name
-          IMAGE_BASE_NAME="${REPOSITORY#*/}"
-          REGISTRY="${REPOSITORY%%/*}"
-
-          # Generate YAML file
-          cat <<EOF > ${IMAGE_PROPERTIES_FILE}
-          images:
-            - type: icm-customization
-              tag: ${TAG}
-              name: ${IMAGE_BASE_NAME}
-              registry: ${REGISTRY}
-              buildWith: []
-          EOF
-
-          # Read all labels from the Docker image
-          IMAGE_LABELS="$(docker inspect -f '{{ json .Config.Labels}}' ${IMAGE_NAME})"
-
-          # Check if the label 'build.with' exists
-          if ! echo "${IMAGE_LABELS}" | jq 'has("build.with")' | grep -q true; then
-            echo "The 'build.with' label was not found in ${IMAGE_LABELS}."
-            exit 1
-          fi
-
-          # Read the value of the 'build.with' label
-          BUILD_WITH_VALUE=$(echo "${IMAGE_LABELS}" | jq --arg key "build.with" -r '.[$key]')
-
-          # Iterate over the comma-separated list of elements in the 'build.with' label
-          IFS=',' read -ra ELEMENTS <<< "$BUILD_WITH_VALUE"
-          for ELEMENT in "${ELEMENTS[@]}"; do
-            echo "## Element: ${ELEMENT}"
-
-            # Check if the label '<ELEMENT>.version' exists in the Docker image
-            ELEMENT_KEY="${ELEMENT}.version"
-            if ! echo "${IMAGE_LABELS}" | jq --arg key "${ELEMENT_KEY}" 'has($key)' | grep -q true; then
-              echo "The '${ELEMENT_KEY}' label was not found in ${IMAGE_LABELS}."
-              exit 1
-            fi
-            
-            # Read the value for the '<ELEMENT>.version' label
-            ELEMENT_VALUE=$(echo "${IMAGE_LABELS}" | jq --arg key "${ELEMENT_KEY}" -rc '.[$key]')
-
-            # Check if the ELEMENT_VALUE is not empty
-            if [ -z "${ELEMENT_VALUE}" ]; then
-              echo "The 'ELEMENT_VALUE' variable is empty."
-              exit 1
-            fi
-
-            # Write the buildWith image to the IMAGE_PROPERTIES_FILE
-            ELEMENT_IMAGE_STRING=$(cat <<EOF
-            {
-              "type": "buildWith",
-              "tag": "${ELEMENT_VALUE}",
-              "name": "${ELEMENT}",
-              "registry": "intershop"
-            }
-          EOF
-          )
-
-            echo "ELEMENT_IMAGE_STRING = $(echo "$ELEMENT_IMAGE_STRING" | jq -rc)"
-            ELEMENT_IMAGE_OBJECT="$ELEMENT_IMAGE_STRING" \
-            yq -i '.images[0].buildWith += eval(strenv(ELEMENT_IMAGE_OBJECT))' ${IMAGE_PROPERTIES_FILE}
-          done
-  
-          # Print the contents of the imageProperties file
-          echo "###### File ${IMAGE_PROPERTIES_FILE} ######"
-          cat ${IMAGE_PROPERTIES_FILE}
-          echo "###### File end ######"
-
-          # Upload the imageProperties file as an artifact
-          echo "##vso[artifact.upload containerfolder=image;artifactname=image_artifacts]${IMAGE_PROPERTIES_FILE}"
-
-          cat >> "$(Pipeline.Workspace)/config${{ parameters.id }}.md" <<EOF
-
-          # Created Docker image
-              id:                             ${REPOSITORY}:${TAG}
-          EOF
-
-          echo "##vso[task.setvariable variable=tag]${TAG}"
-          echo "##vso[task.setvariable variable=imageName]${IMAGE_BASE_NAME}"
-          echo "##vso[task.setvariable variable=registry]${REGISTRY}"
+        filePath: '$(TEMP_TEMPLATE_DIRECTORY)/tasks/create_image_property_file.sh'
 
     - task: PublishPipelineArtifact@1
       timeoutInMinutes: 5
       displayName: Provide geb test log files
       inputs:
-        targetPath: '${{ parameters.projectPath }}/build/geb'
+        targetPath: '$(TEMP_GEB_LOG_DIR)'
         artifactType: 'pipeline'
         artifactName: geb_test_log_files${{ parameters.id }}
       condition: and(succeededOrFailed(), ${{ eq(parameters.runGebTest, true) }})
@@ -701,18 +519,8 @@ jobs:
         inputs:
           azureSubscription: '${{ parameters.acrServiceConnectionArm }}'
           scriptType: bash
-          scriptLocation: inlineScript
-          inlineScript: |
-
-            #!/bin/bash
-            set -e
-
-            # Update the image
-            az acr repository update \
-              --name "${REGISTRY}" \
-              --image "${IMAGE_NAME}:${TAG}" \
-              --delete-enabled false \
-              --write-enabled false
+          scriptLocation: scriptPath
+          scriptPath: '$(TEMP_TEMPLATE_DIRECTORY)/tasks/set_image_attributes.sh'
 
     - ${{ if not(eq(parameters.postHookTemplate, '')) }}:
       - template: ${{ parameters.postHookTemplate }}
@@ -723,25 +531,16 @@ jobs:
       timeoutInMinutes: 10
       condition: always()
       inputs:
-        targetType: 'inline'
-        script: |
+        filePath: '$(TEMP_TEMPLATE_DIRECTORY)/tasks/docker_cleanup.sh'
 
-          # Stop all containers
-          if [[ -n $(docker container ls -a -q) ]]; then docker container stop $(docker container ls -a -q); fi
-          # Remove all unused containers, networks, images and volumes.
-          docker system prune -a -f --volumes
-
-    # Upload build summary file. The summary will appear on an Extensions tab.       
+    # Upload build summary file. The summary will appear on an Extensions tab.
     - task: Bash@3
       timeoutInMinutes: 5
       condition: always()
       continueOnError: true
       displayName: "Provide pipeline configuration"
       inputs:
-        targetType: 'inline'
-        script: |
-          set -e
-          echo "##vso[task.uploadsummary]$(Pipeline.Workspace)/config${{ parameters.id }}.md"
+        filePath: '$(TEMP_TEMPLATE_DIRECTORY)/tasks/provide_pipeline_configuration.sh'
 
     # Adds a build tag based on the SourceBranch type (Pull Request, Tag, or Branch) for better build classification.
     - task: Bash@3
@@ -750,19 +549,4 @@ jobs:
       continueOnError: true
       displayName: "Add pipeline tag based on SourceBranch type"
       inputs:
-        targetType: 'inline'
-        script: |
-          #!/bin/bash
-          set -e
-
-          echo "Checking Build.SourceBranch: $(Build.SourceBranch)"
-    
-          if [[ "$(Build.SourceBranch)" =~ ^refs/pull/ ]]; then
-              echo "##vso[build.addbuildtag]SourceType_Git-PullRequest"
-          elif [[ "$(Build.SourceBranch)" =~ ^refs/tags/ ]]; then
-              echo "##vso[build.addbuildtag]SourceType_Git-Tag"
-          elif [[ "$(Build.SourceBranch)" =~ ^refs/heads/ ]]; then
-              echo "##vso[build.addbuildtag]SourceType_Git-Branch"
-          else
-              echo "##vso[build.addbuildtag]SourceType_Unknown"
-          fi
+        filePath: '$(TEMP_TEMPLATE_DIRECTORY)/tasks/provide_pipeline_tagging.sh'
