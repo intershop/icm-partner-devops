@@ -66,6 +66,7 @@ After that, in Azure DevOps a new pipeline has to be created from this file.
 | javaVersion | Specifies the JDK version to make available on the path. Use a whole number version, such as 17 or 21. | 17 | Yes |
 | dockerhubLogin | Specifies whether to perform a DockerHub login before the build steps. | false |  |
 | dockerhubServiceConnection | Name of the DockerHub registry service connection to use for login. | '$(DOCKERHUB_PUBLIC_SERVICE_CONNECTION)' | Only when `dockerhubLogin` is true |
+| templateRepository | Resource name of this template repository. | icm-partner-devops | Yes |
 
 ### preHookTemplate/postHookTemplate
 This is a very simple example of a pre- or postHookTemplate:
