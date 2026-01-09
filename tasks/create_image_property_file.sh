@@ -11,6 +11,7 @@ set -e
 # Environment Variables:
 #   DOCKER_IMAGE_DIRECTORY   - Path to the directory containing imageId files
 #   TEMP_CONFIG_FILE_PATH    - Path to the configuration file for appending info
+#   TEMP_ID                  - Temporary identifier for artifact naming
 ################################################################################
 
 # Create a temporary folder for storing intermediate files
@@ -126,7 +127,7 @@ cat "${IMAGE_PROPERTIES_FILE}"
 echo "###### File end ######"
 
 # Upload the imageProperties file as an artifact
-echo "##vso[artifact.upload containerfolder=image;artifactname=image_artifacts]${IMAGE_PROPERTIES_FILE}"
+echo "##vso[artifact.upload containerfolder=image;artifactname=image_artifacts${TEMP_ID}]${IMAGE_PROPERTIES_FILE}"
 
 # Append created Docker image info to configuration file
 cat >> "${TEMP_CONFIG_FILE_PATH}" <<EOF

@@ -190,6 +190,7 @@ parameters:
 
 jobs:
 - job: CI${{ parameters.id }}
+  displayName: CI Job ${{ parameters.id }}
   pool: '${{ parameters.agentPool }}'
   dependsOn: ${{ parameters.dependsOn }}
   condition: ${{ parameters.condition }}
@@ -448,7 +449,7 @@ jobs:
       inputs:
         targetPath: '${{ parameters.projectPath }}/build/ishunitrunner'
         artifactType: 'pipeline'
-        artifactName: ishUnitTest_artifacts
+        artifactName: ishUnitTest_artifacts${{ parameters.id }}
       condition: succeededOrFailed()
 
     #
