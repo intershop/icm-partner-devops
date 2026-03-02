@@ -176,7 +176,7 @@ parameters:
   # Specifies whether to perform a DockerHub login before the build steps.
 - name: dockerhubLogin
   type: boolean
-  default: false
+  default: true
 
   # Name of the DockerHub registry service connection to use for login.
 - name: dockerhubServiceConnection
