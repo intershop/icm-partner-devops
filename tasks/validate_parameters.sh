@@ -45,11 +45,16 @@ set -e
 #   TEMP_SPOT_BUGS_ENABLED                  - SpotBugs analysis flag
 #   TEMP_SPOT_BUGS_PLUGIN_VERSION           - SpotBugs plugin version
 #   TEMP_JAVA_VERSION                       - Java version to use
+#   LOG_COLLECTION_DOCKER_LOGS_DIR          - (optional) Path pre-set by the agent where Docker logs are collected;
+#                                             when valid, sets pipeline variable TEMP_DOCKER_LOGS_AVAILABLE=true
+#                                             and TEMP_DOCKER_LOGS_DIR to the resolved path
 ################################################################################
 
 # Mask sensitive information in repositoriesConf parameter
 # Replace the text between "-PrepoPassword=" and the next space with a masked value
 secureRepositoriesConf=$(echo "${MAPPED_TEMP_REPOSITORIES_CONF}" | sed -E 's/(-PrepoPassword=)[^[:space:]]+/\1***MASKED***/g')
+
+echo "##[section] Generating parameter list — available in the Pipeline Extension tab after the run"
 
 # Write all parameters to configuration file
 cat > "${TEMP_CONFIG_FILE_PATH}" <<EOF
@@ -95,65 +100,82 @@ cat > "${TEMP_CONFIG_FILE_PATH}" <<EOF
 
 # Java
     javaVersion:                    ${TEMP_JAVA_VERSION}
+
+# Docker log collection
+    LOG_COLLECTION_DOCKER_LOGS_DIR: ${LOG_COLLECTION_DOCKER_LOGS_DIR:-<not set>}
+    publishBuildTaskDockerLogs:     ${TEMP_PUBLISH_BUILD_TASK_DOCKER_LOGS}
     
 EOF
 
-# Validate required parameters
+echo "##[section] Validating required pipeline parameters"
+
+echo "##[command] Checking: acrServiceConnection"
 if [ -z "${TEMP_ACR_SERVICE_CONNECTION}" ]; then
   echo "##[error] Parameter acrServiceConnection must not be empty!"
   exit 1
 fi
 
+echo "##[command] Checking: artifactsFeed"
 if [ -z "${TEMP_ARTIFACTS_FEED}" ]; then
   echo "##[error] Parameter artifactsFeed must not be empty!"
   exit 1
 fi
 
+echo "##[command] Checking: dockerRepoICMServiceConnection"
 if [ -z "${TEMP_DOCKER_REPO_ICM_SERVICE_CONNECTION}" ]; then
   echo "##[error] Parameter dockerRepoICMServiceConnection must not be empty!"
   exit 1
 fi
 
+echo "##[command] Checking: dockerRepoICM"
 if [ -z "${TEMP_DOCKER_REPO_ICM}" ]; then
   echo "##[error] Parameter dockerRepoICM must not be empty!"
   exit 1
 fi
 
+echo "##[command] Checking: acr (Azure Container Registry URL)"
 if [ -z "${TEMP_ACR}" ]; then
   echo "##[error] Parameter acr must not be empty!"
   exit 1
 fi
 
+echo "##[command] Checking: projectPath"
 if [ -z "${TEMP_PROJECT_PATH}" ]; then
   echo "##[error] Parameter projectPath must not be empty!"
   exit 1
 fi
 
+echo "##[command] Checking: envPath"
 if [ -z "${TEMP_ENV_PATH}" ]; then
   echo "##[error] Parameter envPath must not be empty!"
   exit 1
 fi
 
+echo "##[command] Checking: directoriesConf"
 if [ -z "${TEMP_DIRECTORIES_CONF}" ]; then
   echo "##[error] Parameter directoriesConf must not be empty!"
   exit 1
 fi
 
+echo "##[command] Checking: repositoriesConf"
 if [ -z "${MAPPED_TEMP_REPOSITORIES_CONF}" ]; then
   echo "##[error] Parameter repositoriesConf must not be empty!"
   exit 1
 fi
 
+echo "##[command] Checking: gradleUserHome"
 if [ -z "${TEMP_GRADLE_USER_HOME}" ]; then
   echo "##[error] Parameter gradleUserHome must not be empty!"
   exit 1
 fi
 
+echo "##[command] Checking: containerPrefix"
 if [ -z "${TEMP_CONTAINER_PREFIX}" ]; then
   echo "##[error] Parameter containerPrefix must not be empty!"
   exit 1
 fi
 
+echo "##[command] Checking: id (must contain only letters, numbers and underscores)"
 if [ ! -z "${TEMP_ID}" ]; then
   if echo "${TEMP_ID}" | grep -q '[^a-zA-Z0-9_]'; then
     echo "##[error] Parameter id has to consist of characters, numbers and _ only!"
@@ -161,7 +183,21 @@ if [ ! -z "${TEMP_ID}" ]; then
   fi
 fi
 
+echo "##[command] Checking: javaVersion"
 if [ -z "${TEMP_JAVA_VERSION}" ]; then
   echo "##[error] Parameter javaVersion must not be empty!"
   exit 1
+fi
+
+echo "##[section] All required parameters are valid"
+
+echo "##[command] Checking: Docker log collection directory (LOG_COLLECTION_DOCKER_LOGS_DIR)"
+# Check whether the agent has pre-collected Docker logs and exposed their path.
+# Sets pipeline variables consumed by the PublishPipelineArtifact task.
+if [[ -n "${LOG_COLLECTION_DOCKER_LOGS_DIR:-}" && -d "$LOG_COLLECTION_DOCKER_LOGS_DIR" ]]; then
+  echo "##vso[task.setvariable variable=TEMP_DOCKER_LOGS_AVAILABLE]true"
+  echo "##vso[task.setvariable variable=TEMP_DOCKER_LOGS_DIR]$LOG_COLLECTION_DOCKER_LOGS_DIR"
+else
+  echo "LOG_COLLECTION_DOCKER_LOGS_DIR is not set or not a valid directory: '${LOG_COLLECTION_DOCKER_LOGS_DIR:-}'"
+  echo "##vso[task.setvariable variable=TEMP_DOCKER_LOGS_AVAILABLE]false"
 fi

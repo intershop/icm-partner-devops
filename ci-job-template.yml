@@ -178,6 +178,13 @@ parameters:
   type: boolean
   default: true
 
+  # Specifies whether to publish Docker container logs from the Gradle build task
+  # as a pipeline artifact. Requires the agent to expose the log directory via
+  # the environment variable LOG_COLLECTION_DOCKER_LOGS_DIR.
+- name: publishBuildTaskDockerLogs
+  type: boolean
+  default: true
+
   # Name of the DockerHub registry service connection to use for login.
 - name: dockerhubServiceConnection
   type: string
@@ -260,6 +267,8 @@ jobs:
       value: ${{ parameters.postHookTemplate }}
     - name: TEMP_DOCKERHUB_LOGIN
       value: ${{ parameters.dockerhubLogin }}
+    - name: TEMP_PUBLISH_BUILD_TASK_DOCKER_LOGS
+      value: ${{ parameters.publishBuildTaskDockerLogs }}
     - name: TEMP_DOCKERHUB_SERVICE_CONNECTION
       value: ${{ parameters.dockerhubServiceConnection }}
     - name: TEMP_SONAR_QUBE_ENABLED
@@ -404,6 +413,16 @@ jobs:
         pmdRunAnalysis: ${{ parameters.pmdEnabled }}
         spotBugsAnalysis: ${{ parameters.spotBugsEnabled}}
         spotbugsGradlePluginVersion: '${{ parameters.spotBugsPluginVersion }}'
+
+    - ${{ if parameters.publishBuildTaskDockerLogs }}:
+      - task: PublishPipelineArtifact@1
+        timeoutInMinutes: 5
+        displayName: Provide Docker logs from build
+        inputs:
+          targetPath: '$(TEMP_DOCKER_LOGS_DIR)'
+          artifactType: 'pipeline'
+          artifactName: build_artifacts_docker_logs${{ parameters.id }}
+        condition: and(always(), eq(variables['TEMP_DOCKER_LOGS_AVAILABLE'], 'true'))
 
     - task: Gradle@3
       displayName: Gradle geb tests
@@ -551,3 +570,12 @@ jobs:
       displayName: "Add pipeline tag based on SourceBranch type"
       inputs:
         filePath: '$(TEMP_TEMPLATE_DIRECTORY)/tasks/provide_pipeline_tagging.sh'
+
+    # Notifies the developer that container logs are available as pipeline artifacts when the job has failed.
+    - task: Bash@3
+      timeoutInMinutes: 1
+      condition: failed()
+      continueOnError: true
+      displayName: "Pipeline failed - container logs available as artifacts"
+      inputs:
+        filePath: '$(TEMP_TEMPLATE_DIRECTORY)/tasks/notify_on_failure.sh'

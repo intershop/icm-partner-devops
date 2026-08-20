@@ -65,6 +65,7 @@ After that, in Azure DevOps a new pipeline has to be created from this file.
 | spotBugsPluginVersion | Specifies the version of the SpotBugs plugin to be used for code analysis. | 4.7.0 |  |
 | javaVersion | Specifies the JDK version to make available on the path. Use a whole number version, such as 17 or 21. | 17 | Yes |
 | dockerhubLogin | Specifies whether to perform a DockerHub login before the build steps. | true |  |
+| publishBuildTaskDockerLogs | Specifies whether to publish Docker container logs from the Gradle build task as a pipeline artifact (`docker_logs`). Requires the agent to expose the log directory via the environment variable `LOG_COLLECTION_DOCKER_LOGS_DIR`. If the variable is not set or does not point to a valid directory, the publish step is silently skipped. | true |  |
 | dockerhubServiceConnection | Name of the DockerHub registry service connection to use for login. | '$(DOCKERHUB_PUBLIC_SERVICE_CONNECTION)' | Only when `dockerhubLogin` is true |
 | templateRepository | Resource name of this template repository. | icm-partner-devops | Yes |
 
