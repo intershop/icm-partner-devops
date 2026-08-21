@@ -178,6 +178,13 @@ parameters:
   type: boolean
   default: true
 
+  # Specifies whether to publish Docker container logs from the Gradle build task
+  # as a pipeline artifact. Requires the agent to expose the log directory via
+  # the environment variable LOG_COLLECTION_DOCKER_LOGS_DIR.
+- name: publishBuildTaskDockerLogs
+  type: boolean
+  default: true
+
   # Name of the DockerHub registry service connection to use for login.
 - name: dockerhubServiceConnection
   type: string
@@ -260,6 +267,8 @@ jobs:
       value: ${{ parameters.postHookTemplate }}
     - name: TEMP_DOCKERHUB_LOGIN
       value: ${{ parameters.dockerhubLogin }}
+    - name: TEMP_PUBLISH_BUILD_TASK_DOCKER_LOGS
+      value: ${{ parameters.publishBuildTaskDockerLogs }}
     - name: TEMP_DOCKERHUB_SERVICE_CONNECTION
       value: ${{ parameters.dockerhubServiceConnection }}
     - name: TEMP_SONAR_QUBE_ENABLED
@@ -298,7 +307,7 @@ jobs:
 
     # Check all parameters
     - task: Bash@3
-      displayName: Validate pipeline parameters
+      displayName: Validate Pipeline Parameters
       timeoutInMinutes: 2
       inputs:
         filePath: '$(TEMP_TEMPLATE_DIRECTORY)/tasks/validate_parameters.sh'
@@ -310,21 +319,21 @@ jobs:
     # SNAPSHOTS are not longer separeted by their name.
     - task: Bash@3
       timeoutInMinutes: 5
-      displayName: Checkout $(Build.SourceBranchName)
+      displayName: Checkout Branch $(Build.SourceBranchName)
       inputs:
         workingDirectory: ${{ parameters.projectPath }}
         filePath: '$(TEMP_TEMPLATE_DIRECTORY)/tasks/checkout_repository_resolver.sh'
       condition: ne(variables['Build.SourceBranchName'], 'merge')
 
     - task: Docker@2
-      displayName: Docker Login - dockerRepoICMServiceConnection
+      displayName: Docker Login - ICM Repository
       timeoutInMinutes: 1
       inputs:
         containerRegistry: ${{ parameters.dockerRepoICMServiceConnection }}
         command: 'login'
 
     - task: Docker@2
-      displayName: Docker Login - acrServiceConnection
+      displayName: Docker Login - ACR
       timeoutInMinutes: 1
       inputs:
         containerRegistry: ${{ parameters.acrServiceConnection }}
@@ -332,7 +341,7 @@ jobs:
 
     - ${{ if parameters.dockerhubLogin }}:
       - task: Docker@2
-        displayName: Docker Login - dockerhubServiceConnection
+        displayName: Docker Login - Docker Hub
         timeoutInMinutes: 1
         inputs:
           containerRegistry: ${{ parameters.dockerhubServiceConnection }}
@@ -346,7 +355,7 @@ jobs:
           gradle | "$(Agent.OS)"
           gradle
         path: $(GRADLE_USER_HOME)
-      displayName: Gradle build cache
+      displayName: Restore Gradle Build Cache
 
     - task: JavaToolInstaller@0
       timeoutInMinutes: 1
@@ -357,7 +366,7 @@ jobs:
 
     - task: Gradle@3
       timeoutInMinutes: 10
-      displayName: Check version
+      displayName: Check Gradle Version
       continueOnError: true
       inputs:
         cwd: ${{ parameters.projectPath }}
@@ -370,7 +379,7 @@ jobs:
         tasks: '-version'
 
     - task: Gradle@3
-      displayName: Clean up container (start)
+      displayName: Clean Up Containers (Start)
       continueOnError: true
       inputs:
         cwd: ${{ parameters.projectPath }}
@@ -384,7 +393,7 @@ jobs:
         tasks: 'clean containerClean'
 
     - task: Gradle@3
-      displayName: Gradle build
+      displayName: Gradle Build
       continueOnError: false
       inputs:
         cwd: ${{ parameters.projectPath }}
@@ -405,8 +414,18 @@ jobs:
         spotBugsAnalysis: ${{ parameters.spotBugsEnabled}}
         spotbugsGradlePluginVersion: '${{ parameters.spotBugsPluginVersion }}'
 
+    - ${{ if parameters.publishBuildTaskDockerLogs }}:
+      - task: PublishPipelineArtifact@1
+        timeoutInMinutes: 5
+        displayName: Publish Docker Logs from Build
+        inputs:
+          targetPath: '$(TEMP_DOCKER_LOGS_DIR)'
+          artifactType: 'pipeline'
+          artifactName: build_artifacts_docker_logs${{ parameters.id }}
+        condition: and(always(), eq(variables['TEMP_DOCKER_LOGS_AVAILABLE'], 'true'))
+
     - task: Gradle@3
-      displayName: Gradle geb tests
+      displayName: Gradle Geb Tests
       condition: and(succeeded(), ${{ eq(parameters.runGebTest, true) }})
       continueOnError: false
       inputs:
@@ -421,7 +440,7 @@ jobs:
         tasks: '${{ parameters.gebTestTasks }}'
 
     - task: Bash@3
-      displayName: Write Docker logs from geb tests
+      displayName: Write Docker Logs from Geb Tests
       condition: and(succeededOrFailed(), ${{ eq(parameters.runGebTest, true) }})
       timeoutInMinutes: 5
       inputs:
@@ -430,7 +449,7 @@ jobs:
 
     # the task contains the publishing of test results
     - task: Gradle@3
-      displayName: Gradle publish artifacts
+      displayName: Gradle Publish Artifacts
       continueOnError: false
       inputs:
         cwd: ${{ parameters.projectPath }}
@@ -445,7 +464,7 @@ jobs:
 
     - task: PublishPipelineArtifact@1
       timeoutInMinutes: 5
-      displayName: Provide developer files logs for tests
+      displayName: Publish ISH Unit Test Artifacts
       inputs:
         targetPath: '${{ parameters.projectPath }}/build/ishunitrunner'
         artifactType: 'pipeline'
@@ -458,7 +477,7 @@ jobs:
     
     # Generate a build information file and push it as a pipeline artifact.
     - task: Bash@3
-      displayName: Create Image Version Overview
+      displayName: Create Image Property File
       timeoutInMinutes: 5
       env:
         DOCKER_IMAGE_DIRECTORY: ${{ parameters.projectPath }}/build/.docker
@@ -467,7 +486,7 @@ jobs:
 
     - task: PublishPipelineArtifact@1
       timeoutInMinutes: 5
-      displayName: Provide geb test log files
+      displayName: Publish Geb Test Log Files
       inputs:
         targetPath: '$(TEMP_GEB_LOG_DIR)'
         artifactType: 'pipeline'
@@ -476,7 +495,7 @@ jobs:
 
     - task: PublishPipelineArtifact@1
       timeoutInMinutes: 5
-      displayName: Provide developer files logs
+      displayName: Publish Build Artifacts
       inputs:
         targetPath: '${{ parameters.projectPath }}/build/server/logs'
         artifactType: 'pipeline'
@@ -493,7 +512,7 @@ jobs:
 
     - task: Gradle@3
       timeoutInMinutes: 10
-      displayName: Clean up container (finish)
+      displayName: Clean Up Containers (Finish)
       inputs:
         cwd: ${{ parameters.projectPath }}
         gradleWrapperFile: ${{ parameters.projectPath }}/gradlew
@@ -512,7 +531,7 @@ jobs:
       - task: AzureCLI@2
         timeoutInMinutes: 5
         condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/tags/'))
-        displayName: "Set image attributes"
+        displayName: Set Image Attributes
         env:
           TAG: $(tag)
           IMAGE_NAME: $(imageName)
@@ -528,7 +547,7 @@ jobs:
 
     # Clean up all Docker resources generated by the build.
     - task: Bash@3
-      displayName: Docker Cleanup
+      displayName: Clean Up Docker Resources
       timeoutInMinutes: 10
       condition: always()
       inputs:
@@ -539,7 +558,7 @@ jobs:
       timeoutInMinutes: 5
       condition: always()
       continueOnError: true
-      displayName: "Provide pipeline configuration"
+      displayName: Provide Pipeline Configuration
       inputs:
         filePath: '$(TEMP_TEMPLATE_DIRECTORY)/tasks/provide_pipeline_configuration.sh'
 
@@ -548,6 +567,15 @@ jobs:
       timeoutInMinutes: 1
       condition: always()
       continueOnError: true
-      displayName: "Add pipeline tag based on SourceBranch type"
+      displayName: Add Pipeline Tag Based on SourceBranch Type
       inputs:
         filePath: '$(TEMP_TEMPLATE_DIRECTORY)/tasks/provide_pipeline_tagging.sh'
+
+    # Notifies the developer that container logs are available as pipeline artifacts when the job has failed.
+    - task: Bash@3
+      timeoutInMinutes: 1
+      condition: failed()
+      continueOnError: true
+      displayName: Notify on Pipeline Failure
+      inputs:
+        filePath: '$(TEMP_TEMPLATE_DIRECTORY)/tasks/notify_on_failure.sh'

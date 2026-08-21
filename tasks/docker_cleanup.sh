@@ -9,12 +9,17 @@ set -e
 # and volumes to free up disk space.
 ################################################################################
 
-# Stop all containers if any are running
-if [[ -n $(docker container ls -a -q) ]]; then
-  echo "Stopping all containers..."
-  docker container stop $(docker container ls -a -q) || true
+echo "##[section] Stopping all running Docker containers"
+
+container_ids=$(docker container ls -a -q)
+if [[ -n "${container_ids}" ]]; then
+  echo "##[command] Stopping containers: ${container_ids}"
+  echo "${container_ids}" | xargs docker container stop || true
+  echo "##[command] All containers stopped"
+else
+  echo "No running containers found — skipping stop"
 fi
 
-# Remove all unused containers, networks, images and volumes
-echo "Removing all unused Docker resources..."
+echo "##[section] Removing all unused Docker resources"
 docker system prune -a -f --volumes
+echo "##[section] Docker cleanup complete"
