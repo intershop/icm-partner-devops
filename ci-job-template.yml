@@ -462,6 +462,28 @@ jobs:
         publishJUnitResults: true
         tasks: 'buildImages dockerPublish -x=check'
 
+    # These directories are only produced when the default Gradle tasks run
+    # Check whether they exist so artifact publishing can be skipped
+    # when those tasks are intentionally omitted.
+    - task: Bash@3
+      displayName: Check Optional Artifact Directories
+      condition: succeededOrFailed()
+      inputs:
+        workingDirectory: ${{ parameters.projectPath }}
+        targetType: inline
+        script: |
+          if [ -d build/ishunitrunner ]; then
+            echo "##vso[task.setvariable variable=hasIshUnitArtifacts]true"
+          else
+            echo "##vso[task.setvariable variable=hasIshUnitArtifacts]false"
+          fi
+
+          if [ -d build/server/logs ]; then
+            echo "##vso[task.setvariable variable=hasServerLogs]true"
+          else
+            echo "##vso[task.setvariable variable=hasServerLogs]false"
+          fi
+
     - task: PublishPipelineArtifact@1
       timeoutInMinutes: 5
       displayName: Publish ISH Unit Test Artifacts
@@ -469,7 +491,7 @@ jobs:
         targetPath: '${{ parameters.projectPath }}/build/ishunitrunner'
         artifactType: 'pipeline'
         artifactName: ishUnitTest_artifacts${{ parameters.id }}
-      condition: succeededOrFailed()
+      condition: and(succeededOrFailed(), eq(variables['hasIshUnitArtifacts'], 'true'))
 
     #
     # Post steps
@@ -500,7 +522,7 @@ jobs:
         targetPath: '${{ parameters.projectPath }}/build/server/logs'
         artifactType: 'pipeline'
         artifactName: build_artifacts${{ parameters.id }}
-      condition: succeededOrFailed()
+      condition: and(succeededOrFailed(), eq(variables['hasServerLogs'], 'true'))
 
 #    - task: PublishPipelineArtifact@1
 #      displayName: Provide developer files Geb tests (sub project my_geb_test)
