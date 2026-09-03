@@ -67,6 +67,10 @@ After that, in Azure DevOps a new pipeline has to be created from this file.
 | dockerhubLogin | Specifies whether to perform a DockerHub login before the build steps. | true |  |
 | publishBuildTaskDockerLogs | Specifies whether to publish Docker container logs from the Gradle build task as a pipeline artifact (`docker_logs`). Requires the agent to expose the log directory via the environment variable `LOG_COLLECTION_DOCKER_LOGS_DIR`. If the variable is not set or does not point to a valid directory, the publish step is silently skipped. | true |  |
 | dockerhubServiceConnection | Name of the DockerHub registry service connection to use for login. | '$(DOCKERHUB_PUBLIC_SERVICE_CONNECTION)' | Only when `dockerhubLogin` is true |
+| ishUnitTestArtifactPath | Relative path (within `projectPath`) where ISH Unit Test artifacts are produced. | 'build/ishunitrunner' |  |
+| serverLogsArtifactPath | Relative path (within `projectPath`) where server log artifacts are produced. | 'build/server/logs' |  |
+| gebTestLogPath | Relative path (within `projectPath`) where Geb test log artifacts are produced. | 'build/geb' |  |
+| dockerImageDirectory | Relative path (within `projectPath`) where Docker image property files are produced. | 'build/.docker' |  |
 | templateRepository | Resource name of this template repository. | icm-partner-devops | Yes |
 
 ### preHookTemplate/postHookTemplate

@@ -190,6 +190,26 @@ parameters:
   type: string
   default: '$(DOCKERHUB_PUBLIC_SERVICE_CONNECTION)'
 
+  # Relative path (within projectPath) where ISH Unit Test artifacts are produced.
+- name: ishUnitTestArtifactPath
+  type: string
+  default: 'build/ishunitrunner'
+
+  # Relative path (within projectPath) where server log artifacts are produced.
+- name: serverLogsArtifactPath
+  type: string
+  default: 'build/server/logs'
+
+  # Relative path (within projectPath) where Geb test log artifacts are produced.
+- name: gebTestLogPath
+  type: string
+  default: 'build/geb'
+
+  # Relative path (within projectPath) where Docker image property files are produced.
+- name: dockerImageDirectory
+  type: string
+  default: 'build/.docker'
+
   # Resource name of this template repository.
 - name: templateRepository
   type: string
@@ -213,8 +233,14 @@ jobs:
     # General variables
     - name: TEMP_CONFIG_FILE_PATH
       value: $(Pipeline.Workspace)/config${{ parameters.id }}.md
-    - name: TEMP_GEB_LOG_DIR # Geb project path where logs should be saved
-      value: $(Pipeline.Workspace)/s/${{ parameters.projectPath }}/build/geb
+    - name: TEMP_GEB_TEST_LOG_PATH
+      value: $(Pipeline.Workspace)/s/${{ parameters.projectPath }}/${{ parameters.gebTestLogPath }}
+    - name: TEMP_ISH_UNIT_TEST_ARTIFACT_PATH
+      value: $(Pipeline.Workspace)/s/${{ parameters.projectPath }}/${{ parameters.ishUnitTestArtifactPath }}
+    - name: TEMP_SERVER_LOGS_ARTIFACT_PATH
+      value: $(Pipeline.Workspace)/s/${{ parameters.projectPath }}/${{ parameters.serverLogsArtifactPath }}
+    - name: TEMP_DOCKER_IMAGE_DIRECTORY
+      value: $(Pipeline.Workspace)/s/${{ parameters.projectPath }}/${{ parameters.dockerImageDirectory }}
 
     # Parameters as variables
     - name: TEMP_TEMPLATE_DIRECTORY
@@ -422,7 +448,7 @@ jobs:
           targetPath: '$(TEMP_DOCKER_LOGS_DIR)'
           artifactType: 'pipeline'
           artifactName: build_artifacts_docker_logs${{ parameters.id }}
-        condition: and(always(), eq(variables['TEMP_DOCKER_LOGS_AVAILABLE'], 'true'))
+        condition: and(always(), eq(variables['TEMP_DOCKER_LOGS_AVAILABLE'], 'true')) # always(): publish even if canceled
 
     - task: Gradle@3
       displayName: Gradle Geb Tests
@@ -462,67 +488,41 @@ jobs:
         publishJUnitResults: true
         tasks: 'buildImages dockerPublish -x=check'
 
-    # These directories are only produced when the default Gradle tasks run
-    # Check whether they exist so artifact publishing can be skipped
-    # when those tasks are intentionally omitted.
+    # Check whether optional artifact directories exist, so publishing can be
+    # skipped when they were not produced. A directory that exists but is
+    # empty is still published (a warning is logged for that case).
     - task: Bash@3
       displayName: Check Optional Artifact Directories
-      condition: succeededOrFailed()
+      condition: always()
       inputs:
-        workingDirectory: ${{ parameters.projectPath }}
-        targetType: inline
-        script: |
-          if [ -d build/ishunitrunner ]; then
-            echo "##vso[task.setvariable variable=hasIshUnitArtifacts]true"
-          else
-            echo "##vso[task.setvariable variable=hasIshUnitArtifacts]false"
-          fi
-
-          if [ -d build/server/logs ]; then
-            echo "##vso[task.setvariable variable=hasServerLogs]true"
-          else
-            echo "##vso[task.setvariable variable=hasServerLogs]false"
-          fi
+        filePath: '$(TEMP_TEMPLATE_DIRECTORY)/tasks/check_optional_artifact_directories.sh'
 
     - task: PublishPipelineArtifact@1
       timeoutInMinutes: 5
       displayName: Publish ISH Unit Test Artifacts
       inputs:
-        targetPath: '${{ parameters.projectPath }}/build/ishunitrunner'
+        targetPath: '$(TEMP_ISH_UNIT_TEST_ARTIFACT_PATH)'
         artifactType: 'pipeline'
         artifactName: ishUnitTest_artifacts${{ parameters.id }}
-      condition: and(succeededOrFailed(), eq(variables['hasIshUnitArtifacts'], 'true'))
-
-    #
-    # Post steps
-    #
-    
-    # Generate a build information file and push it as a pipeline artifact.
-    - task: Bash@3
-      displayName: Create Image Property File
-      timeoutInMinutes: 5
-      env:
-        DOCKER_IMAGE_DIRECTORY: ${{ parameters.projectPath }}/build/.docker
-      inputs:
-        filePath: '$(TEMP_TEMPLATE_DIRECTORY)/tasks/create_image_property_file.sh'
-
-    - task: PublishPipelineArtifact@1
-      timeoutInMinutes: 5
-      displayName: Publish Geb Test Log Files
-      inputs:
-        targetPath: '$(TEMP_GEB_LOG_DIR)'
-        artifactType: 'pipeline'
-        artifactName: geb_test_log_files${{ parameters.id }}
-      condition: and(succeededOrFailed(), ${{ eq(parameters.runGebTest, true) }})
+      condition: and(always(), eq(variables['hasIshUnitArtifacts'], 'true')) # always(): publish even if canceled
 
     - task: PublishPipelineArtifact@1
       timeoutInMinutes: 5
       displayName: Publish Build Artifacts
       inputs:
-        targetPath: '${{ parameters.projectPath }}/build/server/logs'
+        targetPath: '$(TEMP_SERVER_LOGS_ARTIFACT_PATH)'
         artifactType: 'pipeline'
         artifactName: build_artifacts${{ parameters.id }}
-      condition: and(succeededOrFailed(), eq(variables['hasServerLogs'], 'true'))
+      condition: and(always(), eq(variables['hasServerLogs'], 'true')) # always(): publish even if canceled
+
+    - task: PublishPipelineArtifact@1
+      timeoutInMinutes: 5
+      displayName: Publish Geb Test Log Files
+      inputs:
+        targetPath: '$(TEMP_GEB_TEST_LOG_PATH)'
+        artifactType: 'pipeline'
+        artifactName: geb_test_log_files${{ parameters.id }}
+      condition: and(always(), eq(variables['hasGebLogs'], 'true')) # always(): publish even if canceled
 
 #    - task: PublishPipelineArtifact@1
 #      displayName: Provide developer files Geb tests (sub project my_geb_test)
@@ -531,6 +531,19 @@ jobs:
 #        artifactType: 'pipeline'
 #        artifactName: test_geb_artifacts${{ parameters.id }}
 #      condition: succeededOrFailed()
+
+    #
+    # Post steps
+    #
+
+    # Generate a build information file and push it as a pipeline artifact.
+    - task: Bash@3
+      displayName: Create Image Property File
+      timeoutInMinutes: 5
+      env:
+        DOCKER_IMAGE_DIRECTORY: $(TEMP_DOCKER_IMAGE_DIRECTORY)
+      inputs:
+        filePath: '$(TEMP_TEMPLATE_DIRECTORY)/tasks/create_image_property_file.sh'
 
     - task: Gradle@3
       timeoutInMinutes: 10
