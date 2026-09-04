@@ -45,6 +45,9 @@ set -e
 #   TEMP_SPOT_BUGS_ENABLED                  - SpotBugs analysis flag
 #   TEMP_SPOT_BUGS_PLUGIN_VERSION           - SpotBugs plugin version
 #   TEMP_JAVA_VERSION                       - Java version to use
+#   TEMP_ISH_UNIT_TEST_ARTIFACT_PATH        - Relative path to ISH Unit Test artifacts
+#   TEMP_SERVER_LOGS_ARTIFACT_PATH          - Relative path to server log artifacts
+#   TEMP_DOCKER_IMAGE_DIRECTORY              - Relative path to Docker image property files
 #   LOG_COLLECTION_DOCKER_LOGS_DIR          - (optional) Path pre-set by the agent where Docker logs are collected;
 #                                             when valid, sets pipeline variable TEMP_DOCKER_LOGS_AVAILABLE=true
 #                                             and TEMP_DOCKER_LOGS_DIR to the resolved path
@@ -100,6 +103,11 @@ cat > "${TEMP_CONFIG_FILE_PATH}" <<EOF
 
 # Java
     javaVersion:                    ${TEMP_JAVA_VERSION}
+
+# Artifact paths
+    ishUnitTestArtifactPath:        ${TEMP_ISH_UNIT_TEST_ARTIFACT_PATH}
+    serverLogsArtifactPath:         ${TEMP_SERVER_LOGS_ARTIFACT_PATH}
+    dockerImageDirectory:           ${TEMP_DOCKER_IMAGE_DIRECTORY}
 
 # Docker log collection
     LOG_COLLECTION_DOCKER_LOGS_DIR: ${LOG_COLLECTION_DOCKER_LOGS_DIR:-<not set>}
@@ -186,6 +194,24 @@ fi
 echo "##[command] Checking: javaVersion"
 if [ -z "${TEMP_JAVA_VERSION}" ]; then
   echo "##[error] Parameter javaVersion must not be empty!"
+  exit 1
+fi
+
+echo "##[command] Checking: ishUnitTestArtifactPath"
+if [ -z "${TEMP_ISH_UNIT_TEST_ARTIFACT_PATH}" ]; then
+  echo "##[error] Parameter ishUnitTestArtifactPath must not be empty!"
+  exit 1
+fi
+
+echo "##[command] Checking: serverLogsArtifactPath"
+if [ -z "${TEMP_SERVER_LOGS_ARTIFACT_PATH}" ]; then
+  echo "##[error] Parameter serverLogsArtifactPath must not be empty!"
+  exit 1
+fi
+
+echo "##[command] Checking: dockerImageDirectory"
+if [ -z "${TEMP_DOCKER_IMAGE_DIRECTORY}" ]; then
+  echo "##[error] Parameter dockerImageDirectory must not be empty!"
   exit 1
 fi
 
